@@ -29,6 +29,7 @@ import { setContext } from '../context/config.js';
 import { isContentTypeRegistered } from '../model/contentTypeRegistry.js';
 import { isFormContentType } from '../model/formContentTypes.js';
 import { contentTypeCanHoldForms, getCachedContentTypes } from '../util/queryUtils.js';
+import { stableKey } from '../util/stableKey.js';
 import { logError, SemanticAttributes } from '../telemetry/index.js';
 import {
   withRequestSpan,
@@ -41,6 +42,7 @@ import {
   DEFAULT_USER_AGENT,
   DEFAULT_MAX_FRAGMENT_THRESHOLD,
   DEFAULT_EXPAND_CONTRACTS,
+  DEFAULT_COMPOSITION_DEPTH,
   GRAPH_PATH,
 } from './constants.js';
 
@@ -54,6 +56,15 @@ export type GraphOptions = {
   host?: string;
   /** Hard limit on generated fragments per content area. Throws GraphFragmentThresholdError when exceeded on unconstrained properties. */
   maxFragmentThreshold?: number;
+  /**
+   * Nesting depth for ordinary composition fragments (sections/rows/columns/elements
+   * inside an experience). Raise it if a composition is nested deeper than the default.
+   *
+   * Temporary: only needed because Graph's `@recursive` directive doesn't retrieve
+   * DAM assets. Once it does, fragments recurse to any depth and this setting goes away.
+   * @default 4
+   */
+  compositionDepth?: number;
   /**
    * Enable or disable contract expansion.
    * When true, contracts are expanded to include all implementing types.
@@ -210,10 +221,18 @@ const METADATA_OP_NAMES: Record<FilterShape, string> = {
   'by-path': 'GetContentMetadataByPath',
 };
 
-function getMetadataQuery(shape: FilterShape, variationMode: VariationMode = 'none'): string {
+function getMetadataQuery(
+  shape: FilterShape,
+  variationMode: VariationMode = 'none',
+): string {
   const varDecls = getFilterVarDecls(shape);
   const variationVars = getVariationVarDecls(variationMode);
-  const allVars = [varDecls, variationVars, '$formsWhere: _ExperienceWhereInput', '$withForms: Boolean!']
+  const allVars = [
+    varDecls,
+    variationVars,
+    '$formsWhere: _ExperienceWhereInput',
+    '$withForms: Boolean!',
+  ]
     .filter(Boolean)
     .join(', ');
   const whereClause = getFilterWhereClause(shape);
@@ -332,10 +351,7 @@ const LINKS_BODY = (linkType: 'PATH' | 'ITEMS') => `{
     }
   }`;
 
-function getLinksQuery(
-  opName: string,
-  shape: FilterShape,
-): string {
+function getLinksQuery(opName: string, shape: FilterShape): string {
   const filterVars = getFilterVarDecls(shape);
   const whereClause = getFilterWhereClause(shape);
   const allVars = [filterVars, '$locale: [Locales]'].sort().join(', ');
@@ -345,10 +361,7 @@ query ${opName}(${allVars}) {
 }`;
 }
 
-function getItemsQuery(
-  opName: string,
-  shape: FilterShape,
-): string {
+function getItemsQuery(opName: string, shape: FilterShape): string {
   const filterVars = getFilterVarDecls(shape);
   const whereClause = getFilterWhereClause(shape);
   const allVars = [filterVars, '$locale: [Locales]'].sort().join(', ');
@@ -357,7 +370,6 @@ query ${opName}(${allVars}) {
   _Content(${whereClause}, locale: $locale) ${LINKS_BODY('ITEMS')}
 }`;
 }
-
 
 type GetLinksResponse = {
   _Content: {
@@ -503,20 +515,33 @@ function findUnresolvedForms(value: any, found: any[] = [], seen = new Set()): a
   return found;
 }
 
-/** Adds an extra `__context` property next to each `__typename` property */
-function decorateWithContext(obj: any, params: PreviewParams): any {
+/**
+ * Adds `_opuid` (a stable React list key) to every array item, and, when `params`
+ * is given, `__context` to every `__typename` object (preview/edit mode only).
+ * Exported only for testing — not part of the user-facing API.
+ */
+export function decorateWithContext(
+  obj: any,
+  params: PreviewParams | null,
+  isArrayItem = false,
+): any {
   if (Array.isArray(obj)) {
-    return obj.map(e => decorateWithContext(e, params));
+    return obj.map(e => decorateWithContext(e, params, true));
   }
   if (typeof obj === 'object' && obj !== null) {
     for (const k in obj) {
       obj[k] = decorateWithContext(obj[k], params);
     }
     if ('__typename' in obj) {
-      obj.__context = {
-        edit: params.ctx === 'edit',
-        preview_token: params.preview_token,
-      };
+      if (isArrayItem) {
+        obj._opuid = obj._metadata?.key ?? stableKey(obj);
+      }
+      if (params) {
+        obj.__context = {
+          edit: params.ctx === 'edit',
+          preview_token: params.preview_token,
+        };
+      }
     }
   }
   return obj;
@@ -534,6 +559,7 @@ export class GraphClient {
   apiKey: string;
   graphUrl: string;
   maxFragmentThreshold: number;
+  compositionDepth: number;
   expandContracts: boolean;
   host?: string;
   cache: boolean;
@@ -548,6 +574,7 @@ export class GraphClient {
     this.graphUrl = normalizeGraphUrl(options.graphUrl || DEFAULT_GRAPH_URL);
     this.maxFragmentThreshold =
       options.maxFragmentThreshold ?? DEFAULT_MAX_FRAGMENT_THRESHOLD;
+    this.compositionDepth = options.compositionDepth ?? DEFAULT_COMPOSITION_DEPTH;
     this.expandContracts = options.expandContracts ?? DEFAULT_EXPAND_CONTRACTS;
     this.host = options.host;
     this.cache = options.cache ?? true;
@@ -746,6 +773,7 @@ export class GraphClient {
         const query = createSingleContentQuery(FORM_CONTAINER_TYPE, {
           damEnabled: options.damEnabled,
           maxFragmentThreshold: this.maxFragmentThreshold,
+          compositionDepth: this.compositionDepth,
           expandContracts: this.expandContracts,
           formsEnabled: true,
           sectionTypes: options.sectionTypes,
@@ -902,6 +930,7 @@ export class GraphClient {
         const query = createMultipleContentQuery(contentTypeName, {
           damEnabled,
           maxFragmentThreshold: this.maxFragmentThreshold,
+          compositionDepth: this.compositionDepth,
           expandContracts: this.expandContracts,
           formsEnabled,
           sectionTypes,
@@ -918,15 +947,18 @@ export class GraphClient {
           storedEnabled,
         )) as ItemsResponse<T>;
 
-        return Promise.all(
-          response?._Content?.items.map((item: unknown) =>
-            this.resolveFormNodes(liftSectionNodes(removeTypePrefix(item)), {
-              damEnabled,
-              sectionTypes,
-              cache: cacheEnabled,
-              slot: activeSlot,
-            }),
-          ) ?? [],
+        return decorateWithContext(
+          await Promise.all(
+            response?._Content?.items.map((item: unknown) =>
+              this.resolveFormNodes(liftSectionNodes(removeTypePrefix(item)), {
+                damEnabled,
+                sectionTypes,
+                cache: cacheEnabled,
+                slot: activeSlot,
+              }),
+            ) ?? [],
+          ),
+          null,
         );
       } catch (error) {
         if (error instanceof GraphMissingContentTypeError) {
@@ -1100,7 +1132,12 @@ export class GraphClient {
       if (!contentTypeName) {
         throw new GraphResponseError(
           `Content with key '${params.key}' could not be found. Verify it exists in the CMS.`,
-          { request: { variables: filter.variables, query: getMetadataQuery(filter.filterShape, 'all') } },
+          {
+            request: {
+              variables: filter.variables,
+              query: getMetadataQuery(filter.filterShape, 'all'),
+            },
+          },
         );
       }
 
@@ -1118,6 +1155,7 @@ export class GraphClient {
       const query = createSingleContentQuery(contentTypeName, {
         damEnabled,
         maxFragmentThreshold: this.maxFragmentThreshold,
+        compositionDepth: this.compositionDepth,
         expandContracts: this.expandContracts,
         formsEnabled,
         sectionTypes,
@@ -1289,6 +1327,7 @@ export class GraphClient {
         const query = createSingleContentQuery(contentTypeName, {
           damEnabled,
           maxFragmentThreshold: this.maxFragmentThreshold,
+          compositionDepth: this.compositionDepth,
           expandContracts: this.expandContracts,
           formsEnabled,
           sectionTypes,
@@ -1304,15 +1343,18 @@ export class GraphClient {
           storedEnabled,
         );
 
-        return this.resolveFormNodes(
-          liftSectionNodes(removeTypePrefix(response?._Content?.item)),
-          {
-            damEnabled,
-            sectionTypes,
-            previewToken,
-            cache: cacheEnabled,
-            slot: activeSlot,
-          },
+        return decorateWithContext(
+          await this.resolveFormNodes(
+            liftSectionNodes(removeTypePrefix(response?._Content?.item)),
+            {
+              damEnabled,
+              sectionTypes,
+              previewToken,
+              cache: cacheEnabled,
+              slot: activeSlot,
+            },
+          ),
+          null,
         );
       } catch (error) {
         if (error instanceof GraphMissingContentTypeError) {
