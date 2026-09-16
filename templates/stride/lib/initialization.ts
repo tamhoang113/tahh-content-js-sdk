@@ -62,6 +62,7 @@ export function initialize() {
   configureAdapter(new ReactContextAdapter());
 
   config({
+    graphUrl: process.env.OPTIMIZELY_GRAPH_GATEWAY!,
     apiKey: process.env.OPTIMIZELY_GRAPH_SINGLE_KEY!,
     fragment: {
       richTextFormat: 'json',
