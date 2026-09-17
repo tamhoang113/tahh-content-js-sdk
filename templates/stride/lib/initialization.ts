@@ -65,6 +65,7 @@ export function initialize() {
   config({
     graphUrl: process.env.OPTIMIZELY_GRAPH_GATEWAY!,
     apiKey: process.env.OPTIMIZELY_GRAPH_SINGLE_KEY!,
+    graphUrl: process.env.OPTIMIZELY_GRAPH_GATEWAY!,
     fragment: {
       richTextFormat: 'json',
     },
