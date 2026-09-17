@@ -8,10 +8,12 @@ import {
   useCallback,
   createContext,
   useContext,
+  useMemo,
 } from 'react';
 import { FormValidationProvider, useFormValidation } from './FormValidationContext.js';
 import { useFormSubmission } from './FormSubmissionProvider.js';
-import { FormRulesProvider } from './FormRulesContext.js';
+import { FormRulesProvider, useFormRules } from './FormRulesContext.js';
+import { getElementIds } from './getElementId.js';
 import { ExperienceNode } from '../../infer.js';
 
 type FormStepsContextType = {
@@ -98,9 +100,9 @@ function FormWrapperContent({
   scrollToOnSuccess = 'form-alert',
   scrollToOnError,
   steps = [],
-  rules,
-}: FormWrapperProps) {
+}: Omit<FormWrapperProps, 'rules'>) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const stepHistoryRef = useRef<number[]>([]);
   const [fieldToReveal, setFieldToReveal] = useState<string | null>(null);
   const {
     setAttemptedSubmit,
@@ -111,6 +113,21 @@ function FormWrapperContent({
   } = useFormValidation();
   const { setStatus } = useFormSubmission();
   const formRef = useRef<HTMLFormElement>(null);
+
+  const { getJumpTarget, isStepVisible } = useFormRules();
+  const rulesRef = useRef({ getJumpTarget, isStepVisible });
+  rulesRef.current = { getJumpTarget, isStepVisible };
+
+  const stepIds = useMemo(
+    () => steps.map(step => getElementIds({ ...step.component, __composition: step })),
+    [steps],
+  );
+
+  const stepKeyToIndex = useMemo(() => {
+    const map = new Map<string, number>();
+    stepIds.forEach((ids, index) => ids.forEach(id => map.set(id, index)));
+    return map;
+  }, [stepIds]);
 
   // An empty action POSTs to the page itself, which answers 405 and surfaces as
   // a generic failure. Usually means the container's Submit URL was left unset.
@@ -151,8 +168,6 @@ function FormWrapperContent({
   const lastStepIndex = Math.max(0, steps.length - 1);
 
   const nextStep = useCallback(() => {
-    // Only the current step is on screen, so only its fields can be corrected here.
-    // Later steps are validated when the form is finally submitted.
     setAttemptedSubmit(true);
     const invalid = validateAllFields({ stepIndex: currentStepIndex });
 
@@ -162,10 +177,33 @@ function FormWrapperContent({
     }
 
     setAttemptedSubmit(false);
-    setCurrentStepIndex(prev => Math.min(lastStepIndex, prev + 1));
+
+    const { getJumpTarget: jump, isStepVisible: stepVisible } = rulesRef.current;
+    const currentIds = stepIds[currentStepIndex];
+
+    if (currentIds?.length) {
+      const jumpTarget = jump(currentIds);
+      if (jumpTarget) {
+        const targetIndex = stepKeyToIndex.get(jumpTarget);
+        if (targetIndex !== undefined) {
+          stepHistoryRef.current.push(currentStepIndex);
+          setCurrentStepIndex(targetIndex);
+          return;
+        }
+      }
+    }
+
+    let next = currentStepIndex + 1;
+    while (next < lastStepIndex && !stepVisible(stepIds[next] ?? [])) {
+      next++;
+    }
+    stepHistoryRef.current.push(currentStepIndex);
+    setCurrentStepIndex(Math.min(lastStepIndex, next));
   }, [
     currentStepIndex,
     lastStepIndex,
+    stepIds,
+    stepKeyToIndex,
     setAttemptedSubmit,
     validateAllFields,
     revealFirstInvalid,
@@ -173,7 +211,9 @@ function FormWrapperContent({
 
   const prevStep = useCallback(() => {
     setAttemptedSubmit(false);
-    setCurrentStepIndex(prev => Math.max(0, prev - 1));
+
+    const prev = stepHistoryRef.current.pop();
+    setCurrentStepIndex(prev ?? 0);
   }, [setAttemptedSubmit]);
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -216,6 +256,7 @@ function FormWrapperContent({
       resetFields();
       setAttemptedSubmit(false);
       setCurrentStepIndex(0);
+      stepHistoryRef.current = [];
       scrollToElement(scrollToOnSuccess);
     } catch (error) {
       // Only a handler's own error was written for a visitor to read. The
@@ -226,25 +267,30 @@ function FormWrapperContent({
   };
 
   return (
-    <FormRulesProvider rules={Array.isArray(rules) ? rules : undefined}>
-      <FormStepsContext.Provider value={{ currentStepIndex, nextStep, prevStep }}>
-        <form ref={formRef} onSubmit={handleSubmit} onReset={(e) => {
+    <FormStepsContext.Provider value={{ currentStepIndex, nextStep, prevStep }}>
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        onReset={e => {
           e.preventDefault();
           resetFields();
           setAttemptedSubmit(false);
           setCurrentStepIndex(0);
-        }}>
-          {children}
-        </form>
-      </FormStepsContext.Provider>
-    </FormRulesProvider>
+          stepHistoryRef.current = [];
+        }}
+      >
+        {children}
+      </form>
+    </FormStepsContext.Provider>
   );
 }
 
 export default function FormWrapper(props: FormWrapperProps) {
   return (
     <FormValidationProvider>
-      <FormWrapperContent {...props} />
+      <FormRulesProvider rules={Array.isArray(props.rules) ? props.rules : undefined}>
+        <FormWrapperContent {...props} />
+      </FormRulesProvider>
     </FormValidationProvider>
   );
 }

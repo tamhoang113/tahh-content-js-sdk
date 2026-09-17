@@ -6,6 +6,9 @@ export type DependencyRule = {
   TargetElement: string | null;
   SatisfiedAction: string | null;
   ConditionCombination: string | null;
+  AfterStep?: string | null;
+  JumpToStep?: string | null;
+  TargetStep?: string | null;
   Conditions: Array<{
     DependsOnField: string | null;
     ComparisonOperator: string | null;
@@ -13,12 +16,18 @@ export type DependencyRule = {
   }> | null;
 };
 
+export type ElementId = string | string[];
+
 type FormRulesContextType = {
   rules: DependencyRule[];
   fieldValues: Map<string, unknown>;
-  setFieldValue: (fieldId: string, value: unknown) => void;
-  isElementVisible: (elementId: string) => boolean;
+  setFieldValue: (fieldId: ElementId, value: unknown) => void;
+  isElementVisible: (elementId: ElementId) => boolean;
+  getJumpTarget: (afterStepKey: ElementId) => string | null;
+  isStepVisible: (stepKey: ElementId) => boolean;
 };
+
+const toIds = (id: ElementId): string[] => (Array.isArray(id) ? id : [id]);
 
 const FormRulesContext = createContext<FormRulesContextType | undefined>(undefined);
 
@@ -30,8 +39,15 @@ type FormRulesProviderProps = {
 export function FormRulesProvider({ children, rules = [] }: FormRulesProviderProps) {
   const [fieldValues, setFieldValuesMap] = useState(new Map<string, unknown>());
 
-  const setFieldValue = useCallback((fieldId: string, value: unknown) => {
-    setFieldValuesMap(prev => new Map(prev).set(fieldId, value));
+  const setFieldValue = useCallback((fieldId: ElementId, value: unknown) => {
+    const ids = toIds(fieldId);
+    if (ids.length === 0) return;
+
+    setFieldValuesMap(prev => {
+      const next = new Map(prev);
+      ids.forEach(id => next.set(id, value));
+      return next;
+    });
   }, []);
 
   const evaluateCondition = (
@@ -81,8 +97,18 @@ export function FormRulesProvider({ children, rules = [] }: FormRulesProviderPro
     return results.some(r => r);
   };
 
-  const isElementVisible = (elementId: string): boolean => {
-    const applicableRules = rules.filter(r => r.TargetElement === elementId);
+  const findRulesFor = (
+    id: ElementId,
+    target: (rule: DependencyRule) => string | null | undefined,
+  ): DependencyRule[] => {
+    const ids = new Set(toIds(id));
+    return rules.filter(rule => {
+      const name = target(rule);
+      return !!name && ids.has(name);
+    });
+  };
+
+  const resolveVisibility = (applicableRules: DependencyRule[]): boolean => {
     if (applicableRules.length === 0) return true;
 
     const allHide = applicableRules.filter(r => r.SatisfiedAction === 'Hide');
@@ -94,8 +120,19 @@ export function FormRulesProvider({ children, rules = [] }: FormRulesProviderPro
     return true;
   };
 
+  const isElementVisible = (elementId: ElementId): boolean =>
+    resolveVisibility(findRulesFor(elementId, r => r.TargetElement));
+
+  const getJumpTarget = (afterStepKey: ElementId): string | null =>
+    findRulesFor(afterStepKey, r => r.AfterStep)
+      .filter(r => r.JumpToStep && isSatisfied(r))
+      .map(r => r.JumpToStep!)[0] ?? null;
+
+  const isStepVisible = (stepKey: ElementId): boolean =>
+    resolveVisibility(findRulesFor(stepKey, r => r.TargetStep));
+
   return (
-    <FormRulesContext.Provider value={{ rules, fieldValues, setFieldValue, isElementVisible }}>
+    <FormRulesContext.Provider value={{ rules, fieldValues, setFieldValue, isElementVisible, getJumpTarget, isStepVisible }}>
       {children}
     </FormRulesContext.Provider>
   );
@@ -108,6 +145,8 @@ const NO_RULES: FormRulesContextType = {
   fieldValues: new Map(),
   setFieldValue: () => {},
   isElementVisible: () => true,
+  getJumpTarget: () => null,
+  isStepVisible: () => true,
 };
 
 export function useFormRules() {
