@@ -58,6 +58,9 @@ config({
   fragment: {
     richTextFormat: 'json',
   },
+  query: {
+    host: process.env.APPLICATION_HOST,
+  },
 });
 
 initContentTypeRegistry([
