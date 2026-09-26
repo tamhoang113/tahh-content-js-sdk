@@ -46,6 +46,7 @@ import OfficeLocations, { OfficeContentType } from '@/components/OfficeLocations
 import Location, { LocationContentType } from '@/components/Location';
 import BlankExperience from '@/components/BlankExperience';
 import FAQ, { FAQContentType } from '@/components/FAQ';
+import { QA_CONTENT_TYPES, QA_RESOLVERS } from '@/qa/_registry';
 
 config({
   apiKey: process.env.OPTIMIZELY_GRAPH_SINGLE_KEY || 'your api key here',
@@ -78,6 +79,7 @@ initContentTypeRegistry([
   LocationContentType,
   BlankExperienceContentType,
   FAQContentType,
+  ...QA_CONTENT_TYPES,
 ]);
 
 initReactComponentRegistry({
@@ -107,6 +109,7 @@ initReactComponentRegistry({
     Location,
     BlankExperience,
     FAQ,
+    ...QA_RESOLVERS,
   },
 });
 

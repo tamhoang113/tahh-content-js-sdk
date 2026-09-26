@@ -3,3 +3,4 @@ packages:
   - 'samples/*'
   - 'templates/*'
   - '__test__/*'
+  - '_qa'
