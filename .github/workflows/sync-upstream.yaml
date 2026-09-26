@@ -2,7 +2,7 @@ name: Sync upstream
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # 8:00 AM Vietnam time (UTC+7)
+    - cron: '0 21 * * *'  # 4:00 AM Vietnam time (UTC+7)
   workflow_dispatch:       # manual trigger from GitHub UI
 
 jobs:
