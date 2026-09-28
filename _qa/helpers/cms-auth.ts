@@ -20,18 +20,18 @@ export async function loginToCms(page: Page, config: SiteConfig): Promise<void> 
     .locator('input[type="text"], input[name="identifier"], textbox')
     .first()
     .fill(config.cmsUser);
-  await page
-    .locator('button:has-text("Next"), button[type="submit"]')
-    .first()
-    .click();
+
+  // Use role-based locator: Okta's submit control isn't always a native
+  // <button> (can be <input type="submit"> or a custom element), so a tag-based
+  // CSS selector like `button:has-text(...)` can match 0 elements even though
+  // it's clearly visible on screen. getByRole resolves via the accessibility
+  // tree (implicit ARIA role), which works regardless of the underlying tag.
+  await page.getByRole('button', { name: /Next/i }).click();
   await page.waitForLoadState('domcontentloaded');
 
   // Password step
   await page.locator('input[type="password"]').fill(config.cmsPass);
-  await page
-    .locator('button:has-text("Verify"), button:has-text("Sign in"), button[type="submit"]')
-    .first()
-    .click();
+  await page.getByRole('button', { name: /Verify|Sign in/i }).click();
 
   await page.waitForURL(`${config.cmsUrl}/ui/cms**`, { timeout: 15_000 });
   await page.waitForTimeout(1500);

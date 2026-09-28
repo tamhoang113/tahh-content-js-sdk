@@ -24,6 +24,11 @@ import {
   CMS54935CardComponentBComponent,
 } from '@/qa/CMS_54935_ArrayContractExpansion';
 import CMS54935CardContainerComponent from '@/qa/CMS_54935_ArrayContractExpansion';
+import CMS54844HeroSectionComponent, {
+  CMS54844HeroSection,
+  CMS54844HeroElement,
+  CMS54844HeroElementComponent,
+} from '@/qa/CMS_54844_SectionPropertiesFlat';
 import {
   AutoBaseContract,
   AutoStringAllFields,
@@ -63,6 +68,8 @@ export const QA_CONTENT_TYPES = [
   CMS54935CardComponentA,
   CMS54935CardComponentB,
   CMS54935CardContainer,
+  CMS54844HeroSection,
+  CMS54844HeroElement,
   AutoBaseContract,
   AutoStringAllFields,
   AutoBooleanAllFields,
@@ -98,4 +105,6 @@ export const QA_RESOLVERS = {
   CMS54935CardComponentA: CMS54935CardComponentAComponent,
   CMS54935CardComponentB: CMS54935CardComponentBComponent,
   CMS54935CardContainer: CMS54935CardContainerComponent,
+  CMS54844HeroSection: CMS54844HeroSectionComponent,
+  CMS54844HeroElement: CMS54844HeroElementComponent,
 };

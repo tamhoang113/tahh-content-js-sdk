@@ -87,9 +87,16 @@ export function CMS54651PageWithMultipleContractsComponent({ content }: CMS54651
 
   return (
     <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1 {...pa('title')} style={{ marginBottom: '1.5rem' }}>
-        {content.title ?? 'CMS54651 Page With Multiple Contracts'}
-      </h1>
+      <h2 {...pa('title')} style={{ marginBottom: '1.5rem' }}>
+        {content.title ?? (
+          <>
+            CMS54651 Page With Multiple Contracts
+            <br />
+            (title is undefined — this is CMS fixture data, not related to expandContracts:
+            `title` is this type's own property, not inherited via `extends`. Fill it in on the CMS content.)
+          </>
+        )}
+      </h2>
       <section style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '1.5rem', marginBottom: '1rem' }}>
         <h2 style={{ marginBottom: '1rem', fontSize: '1rem', color: '#555' }}>Teaser Contract</h2>
         <p {...pa('teaserTitle')} style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>

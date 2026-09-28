@@ -25,7 +25,16 @@ const GRAPH_URL = process.env.OPTIMIZELY_GRAPH_GATEWAY ?? 'https://staging.cg.op
 const LOGS_DIR = path.join(process.cwd(), 'logs');
 
 function getClient(apiKey?: string) {
-  return new GraphClient(apiKey ?? GRAPH_KEY, { graphUrl: GRAPH_URL });
+  // expandContracts defaults to false in the SDK. Required for QA fixtures using
+  // contract-based allowedTypes in an array/content property (CMS-54935, and
+  // the "array page" fixture in CMS-54651) — without it, the query only
+  // includes the contract's own fragment for nested items, so even the
+  // concrete type's OWN properties (e.g. `title`) come back undefined.
+  // Verified: querying a page directly (not nested in such an array) already
+  // returns its own properties regardless of this flag — `extends` (schema
+  // merge) is unrelated. This only matters for contract-restricted
+  // allowedTypes resolution. Safe to enable globally for this QA-only route.
+  return new GraphClient(apiKey ?? GRAPH_KEY, { graphUrl: GRAPH_URL, fragment: { expandContracts: true } });
 }
 
 function getLogFilesBefore(): Set<string> {

@@ -1,4 +1,5 @@
 import type { SiteConfig } from './types.js';
+import { findContentPathByDisplayName } from './graph-api.js';
 
 export type SdkEndpoint = 'getContent' | 'getContentByPath' | 'getPreviewContent' | 'getPath' | 'getItems';
 
@@ -24,15 +25,34 @@ export async function callSdkApi(
   options?: { stored?: boolean },
 ): Promise<SdkCallResult> {
   const url = `${config.baseUrl}/qa/apis/run`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      endpoint,
-      params,
-      stored: options?.stored ?? true,
-    }),
-  });
+
+  // Local dev servers (`next dev --experimental-https`) use a self-signed cert,
+  // which Node's fetch rejects by default. Scope the TLS bypass to just this one
+  // local call — never to real staging/production HTTPS endpoints (Graph, CMS API) —
+  // and restore the previous setting right after, so it can't leak into other requests.
+  const isLocalHttps = /^https:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(config.baseUrl);
+  const previousTlsSetting = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  if (isLocalHttps) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint,
+        params,
+        stored: options?.stored ?? true,
+      }),
+    });
+  } finally {
+    if (isLocalHttps) {
+      if (previousTlsSetting === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      else process.env.NODE_TLS_REJECT_UNAUTHORIZED = previousTlsSetting;
+    }
+  }
 
   const json = await res.json();
 
@@ -61,6 +81,47 @@ export async function getContentByPath(config: SiteConfig, contentPath: string):
     throw new Error(`getContentByPath("${contentPath}") failed: ${result.error}`);
   }
   return result.data ?? [];
+}
+
+export interface ContentByDisplayNameResult {
+  content: any;
+  key: string;
+  path: string;
+  displayName: string;
+}
+
+/**
+ * Resolve a content item by its stable CMS display name (via Graph), then fetch
+ * it through getContentByPath — the real SDK code path — instead of hardcoding
+ * a URL in test code. See QA_CONTEXT.md §6.1 for why: display names follow the
+ * `CMS{id}_{ShortDesc}` fixture convention and rarely change, unlike URL paths.
+ *
+ * Throws a clear precondition error (not a silent empty result) if the display
+ * name isn't found in Graph, or if the resolved path returns no content.
+ */
+export async function getContentByDisplayName(
+  config: SiteConfig,
+  displayName: string,
+  envOverrideHint?: string,
+): Promise<ContentByDisplayNameResult> {
+  const lookup = await findContentPathByDisplayName(config, displayName);
+  if (!lookup) {
+    throw new Error(
+      `No content found with displayName "${displayName}"${envOverrideHint ? ` — create the test page or set ${envOverrideHint}` : ''}`,
+    );
+  }
+
+  const results = await getContentByPath(config, lookup.path);
+  if (results.length === 0) {
+    throw new Error(`No content at resolved path "${lookup.path}" (displayName "${displayName}")`);
+  }
+
+  return {
+    content: results[0],
+    key: lookup.key,
+    path: lookup.path,
+    displayName: lookup.displayName,
+  };
 }
 
 /**
