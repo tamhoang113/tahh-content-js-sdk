@@ -1,0 +1,26 @@
+{
+  "name": "cms-js-sdk-qa",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "QA automation tests for CMS JS SDK (CLI, SDK, templates)",
+  "scripts": {
+    "test": "vitest run && playwright test",
+    "test:cli": "vitest run tests/cli/ && node scripts/generate-report.mjs cli",
+    "test:sdk": "vitest run tests/sdk/ && node scripts/generate-report.mjs sdk",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test tests/e2e/smoke/",
+    "test:e2e:smoke:stride": "playwright test tests/e2e/smoke/stride.spec.ts",
+    "test:e2e:smoke:alloy": "playwright test tests/e2e/smoke/alloy.spec.ts",
+    "test:e2e:headed": "playwright test --headed",
+    "test:ui": "vitest --ui",
+    "report:e2e": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@vitest/ui": "^5.0.2",
+    "dotenv": "^16.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^5.0.1"
+  }
+}
