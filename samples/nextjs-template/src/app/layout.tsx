@@ -55,7 +55,7 @@ config({
     // These samples render body.html via dangerouslySetInnerHTML and body.json via RichText; the SDK default is 'json'.
     richTextFormat: 'both',
     expandContracts: true,
-  },
+  }
 });
 
 initContentTypeRegistry([

@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
 import { RichText } from '../richText/component.js';
 import {
@@ -71,5 +71,14 @@ describe('RichText Component', () => {
     const el = screen.getByText('Hello world');
     expect(el.tagName.toLowerCase()).toBe('span');
     expect(el).toHaveStyle('text-decoration: underline');
+  });
+
+  it('should render content delivered as a serialized JSON string', () => {
+    render(<RichText content={JSON.stringify(simpleTextContent) as any} />);
+    expect(screen.getByText('Hello, World!')).toBeInTheDocument();
+  });
+
+  it('should render nothing for a malformed JSON string instead of throwing', () => {
+    expect(() => render(<RichText content={'{"children":' as any} />)).not.toThrow();
   });
 });
