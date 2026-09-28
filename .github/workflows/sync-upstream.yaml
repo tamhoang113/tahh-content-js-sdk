@@ -30,5 +30,13 @@ jobs:
             exit 1
           }
 
+      - name: Verify fork-only QA code survived merge
+        run: |
+          if [ ! -f "_qa/helpers/sdk-api.ts" ] || [ ! -f "samples/nextjs-template/src/qa/_registry.ts" ]; then
+            echo "::error::Fork-only QA files are missing after merge — aborting push to prevent data loss"
+            exit 1
+          fi
+          echo "QA files verified ✅"
+
       - name: Push to fork
         run: git push origin main
