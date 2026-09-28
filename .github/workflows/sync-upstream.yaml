@@ -38,5 +38,17 @@ jobs:
           fi
           echo "QA files verified ✅"
 
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Regenerate lockfile for _qa workspace
+        run: |
+          pnpm install --no-frozen-lockfile
+          git add pnpm-lock.yaml
+          git diff --cached --quiet pnpm-lock.yaml || git commit -m "chore: regenerate pnpm-lock.yaml after upstream sync"
+
       - name: Push to fork
         run: git push origin main
