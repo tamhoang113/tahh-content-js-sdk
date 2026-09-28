@@ -1,0 +1,6 @@
+{
+  "components": [
+    "./src/qa/**.tsx",
+    "./src/qa/**.ts"
+  ]
+}
