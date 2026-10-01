@@ -13,8 +13,6 @@ export {
   PropertyGroupType,
 } from './model/index.js';
 
-export { initForms } from './react/server.js';
-
 // GraphQL
 export {
   GraphClient,
@@ -29,6 +27,13 @@ export {
 export type {
   PreviewParams,
   GraphReference,
+  GraphAuth,
+  GraphAuthContext,
+  GraphAuthHeaders,
+  GraphAuthMode,
+  GraphAuthResolver,
+  GraphActingUser,
+  GraphSecrets,
   GraphOptions,
   GraphFragmentOptions,
   GraphGetItemOptions,

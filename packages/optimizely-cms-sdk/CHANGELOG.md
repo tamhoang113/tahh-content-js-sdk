@@ -1,5 +1,33 @@
 # @optimizely/cms-sdk
 
+## 3.0.2
+
+### Patch Changes
+
+- 7cb957b: [CMS-56719](https://optimizely-ext.atlassian.net/browse/CMS-56719): Fix
+  `getContentByPath()` with `variation: { include: 'SOME' }`, broken since 3.0.0.
+
+  The metadata lookup declared its `$vN` variables but never sent the values, so Graph
+  received `value: [null]` and answered `HTTP 500`. `includeOriginal` was typed but never
+  read, so a visitor matching no variation got nothing instead of the original.
+
+## 3.0.1
+
+### Patch Changes
+
+- 8681821: [CMS-56682](https://optimizely-ext.atlassian.net/browse/CMS-56682): Fix
+  `MODULE_NOT_FOUND: Cannot find package 'react'` when using the SDK without React
+  installed.
+
+  The root entry (`@optimizely/cms-sdk`) re-exported `initForms` from `./react/server.js`,
+  which pulled React into the import graph of every consumer. Because React is an optional
+  peer dependency, any install without it — most visibly `npx @optimizely/cms-cli`, where
+  every command failed to load — crashed on import.
+
+  `initForms` is unchanged and still exported from `@optimizely/cms-sdk/react/server`,
+  which is where the templates and documentation have always imported it from.
+  React-dependent APIs remain available through the `./react/*` subpath exports.
+
 ## 3.0.0
 
 ### Major Changes
