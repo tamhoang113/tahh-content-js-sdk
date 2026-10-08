@@ -14,35 +14,16 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Add upstream remote
-        run: git remote add upstream https://github.com/episerver/content-js-sdk.git || true
+      - uses: pnpm/action-setup@v4
 
-      - name: Fetch upstream
-        run: git fetch upstream
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-      - name: Merge upstream/main
+      - name: Sync upstream into fork
+        shell: pwsh
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git merge upstream/main --no-edit; then
-            echo "Merge succeeded cleanly ✅"
-          else
-            CONFLICTED=$(git diff --name-only --diff-filter=U)
-            echo "Conflicted files:"
-            echo "$CONFLICTED"
-
-            NON_LOCK=$(echo "$CONFLICTED" | grep -v '^pnpm-lock.yaml$' || true)
-            if [ -n "$NON_LOCK" ]; then
-              echo "::error::Conflicts in non-lockfile files — manual resolution required:"
-              echo "$NON_LOCK"
-              git merge --abort
-              exit 1
-            fi
-
-            echo "Only pnpm-lock.yaml conflicted — auto-resolving"
-            git checkout --theirs pnpm-lock.yaml
-            git add pnpm-lock.yaml
-          fi
+          ./scripts/sync-upstream.ps1 -Push
 
       - name: Create issue on merge conflict
         if: failure()
@@ -68,43 +49,17 @@ jobs:
               body: [
                 '## Upstream sync failed',
                 '',
-                'Conflicts in non-lockfile files require manual resolution.',
+                'The auto-sync script could not safely resolve the current conflicts.',
                 '',
                 '**Steps to fix locally:**',
                 '```bash',
                 'cd D:\\github\\JS-SDK\\tahh-content-js-sdk',
-                'git fetch upstream',
-                'git merge upstream/main',
-                '# resolve conflicts',
-                'git add .',
-                'git commit -m "Merge upstream/main - resolve conflicts"',
-                'git push origin main',
+                'pwsh -File .\\scripts\\sync-upstream.ps1',
+                '# if the script stops, inspect the remaining conflicts',
+                'git status',
                 '```',
                 '',
                 `**Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               ].join('\n'),
               labels: ['sync-conflict'],
             });
-
-      - name: Verify fork-only QA code survived merge
-        run: |
-          if [ ! -f "_qa/helpers/sdk-api.ts" ] || [ ! -f "samples/nextjs-template/src/qa/_registry.ts" ]; then
-            echo "::error::Fork-only QA files are missing after merge — aborting push to prevent data loss"
-            exit 1
-          fi
-          echo "QA files verified ✅"
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Regenerate lockfile for _qa workspace
-        run: |
-          pnpm install --no-frozen-lockfile
-          git add pnpm-lock.yaml
-          git diff --cached --quiet pnpm-lock.yaml || git commit -m "chore: regenerate pnpm-lock.yaml after upstream sync"
-
-      - name: Push to fork
-        run: git push origin main
