@@ -29,6 +29,9 @@ import CMS54844HeroSectionComponent, {
   CMS54844HeroElement,
   CMS54844HeroElementComponent,
 } from '@/qa/CMS_54844_SectionPropertiesFlat';
+import CMS56217TaxonomyPageComponent, {
+  CMS56217TaxonomyPage,
+} from '@/qa/CMS_56217_TaxonomyCategories';
 import {
   AutoBaseContract,
   AutoStringAllFields,
@@ -53,6 +56,7 @@ import {
   AutoComponentSectionEnabled,
   AutoComponentBothBehaviors,
 } from '@/qa/Auto_Push_PropertyTypes';
+import { AutoNoContent } from '@/qa/Auto_PushOnly_Verify';
 
 /** Spread into initContentTypeRegistry([...appTypes, ...QA_CONTENT_TYPES]) */
 export const QA_CONTENT_TYPES = [
@@ -70,6 +74,7 @@ export const QA_CONTENT_TYPES = [
   CMS54935CardContainer,
   CMS54844HeroSection,
   CMS54844HeroElement,
+  CMS56217TaxonomyPage,
   AutoBaseContract,
   AutoStringAllFields,
   AutoBooleanAllFields,
@@ -92,6 +97,7 @@ export const QA_CONTENT_TYPES = [
   AutoComponentElementEnabled,
   AutoComponentSectionEnabled,
   AutoComponentBothBehaviors,
+  AutoNoContent,
 ];
 
 /** Spread into initReactComponentRegistry({ resolver: { ...appResolver, ...QA_RESOLVERS } }) */
@@ -107,4 +113,5 @@ export const QA_RESOLVERS = {
   CMS54935CardContainer: CMS54935CardContainerComponent,
   CMS54844HeroSection: CMS54844HeroSectionComponent,
   CMS54844HeroElement: CMS54844HeroElementComponent,
+  CMS56217TaxonomyPage: CMS56217TaxonomyPageComponent,
 };

@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import { existsSync } from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -23,7 +24,10 @@ export function runCli(
   projectDir: string,
   timeoutMs = 60_000,
 ): CliResult {
-  const fullCmd = `npx @optimizely/cms-cli ${command}`;
+  const localBin = path.resolve(__dirname, '..', '..', 'packages', 'optimizely-cms-cli', 'bin', 'run.js');
+  const fullCmd = existsSync(localBin)
+    ? `node "${localBin}" ${command}`
+    : `npx @optimizely/cms-cli ${command}`;
   try {
     const stdout = execSync(fullCmd, {
       cwd: projectDir,

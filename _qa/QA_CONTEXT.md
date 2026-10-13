@@ -133,7 +133,7 @@ npx tsc --noEmit                      # kiểm tra TypeScript
 
 **Ưu tiên Layer SDK API** — không cần browser, cover hầu hết SDK bugs.
 
-**Manual data model:** QA tạo content trên CMS UI một lần → tests verify API response tự động. Không dùng API để tạo content (flaky, tách biệt mối lo).
+**Data model — fixture-driven (hiện tại):** thay cho mô hình "tạo content tay trên CMS UI" cũ. Tests KHÔNG còn phụ thuộc data thủ công, KHÔNG hardcode GUID/path/displayName. Content được provision qua Integration API bởi một lớp *ensure* idempotent (poll Graph tới khi queryable), tách hẳn khỏi assertion. Xem **§6.5 Fixture-Driven Data Model**. Mối lo cũ (tạo qua API bị flaky do indexing) được giải quyết bằng ensure layer + seed tách riêng.
 
 ---
 
@@ -149,9 +149,9 @@ npx tsc --noEmit                      # kiểm tra TypeScript
 1. Tạo `src/qa/CMS_{ID}_{ShortDesc}.tsx` (content types + React components)
 2. Thêm vào `QA_CONTENT_TYPES` + `QA_RESOLVERS` trong `_registry.ts`
 3. Chạy `opti-cms push` để đăng ký lên CMS SaaS
-4. Tạo test content trên CMS UI
-5. Tạo `_qa/tests/sdk/cms-{id}-{short-desc}.test.ts`
-6. Chạy `pnpm test:sdk`
+4. Tạo `_qa/fixtures/cms-{id}.ts` (fixture catalog — các case + expected) — xem §6.5
+5. Tạo `_qa/tests/sdk/cms-{id}-{short-desc}.test.ts` dùng `ensureStoryFixtures` (không tạo content tay)
+6. Set `CMS_TEST_CONTAINER` = GUID root (vd folder "Auto"), rồi `pnpm seed:cms-{id}` (tùy chọn) và `pnpm test:sdk`
 
 ### Naming convention
 - TSX: `CMS_{ID}_{ShortDesc}.tsx` — ShortDesc là PascalCase 3-5 từ
@@ -159,6 +159,26 @@ npx tsc --noEmit                      # kiểm tra TypeScript
 - Test file: `cms-{id}-{short-desc}.test.ts`
 - **CMS UI content (display name)**: cùng convention `CMS{ID}_{ShortDesc}` — khớp với tên TSX/test để dễ tra cứu 2 chiều (vd: content type `CMS54844_SectionPropertiesFlat` → folder/page trong CMS UI cũng đặt tên `CMS54844_SectionPropertiesFlat`)
 - **CMS UI folder tổ chức**: gom toàn bộ content test-fixture vào 1 folder cố định (vd: `CheckBugs`), mỗi ticket 1 sub-item/sub-folder cùng tên `CMS{ID}_{ShortDesc}` — dễ nhận biết "đừng xoá", tránh lẫn với content demo thường
+
+### View component convention — bảng Property / Value / Expected (BẮT BUỘC)
+
+Mọi React component dùng để render 1 QA page (default export trong `src/qa/CMS_{ID}_*.tsx`) đều render data dưới dạng **một bảng 3 cột `Property | Value | Expected`**, mỗi property là 1 dòng. Lý do: QA/dev nhìn 1 chỗ thấy ngay property nào có giá trị gì và kỳ vọng ra sao, đồng thời cho e2e một DOM ổn định để assert.
+
+Quy tắc:
+- **Cột**: `Property` (tên property, vd `content.title`, `content._metadata.categories`) · `Value` (giá trị render như thật) · `Expected` (mô tả contract/kiểu dữ liệu mong đợi — vì component chỉ có `content`, không có expected cụ thể per-case).
+- **Mỗi dòng là `<tr data-property="<đường-dẫn>">`** (vd `data-property="_metadata.categories"`). Đây là anchor e2e bám vào — **không** dựa vào text heading/`<section>` (dễ vỡ khi đổi chữ).
+- **Value cell gắn `{...pa('<prop>')}`** cho các property editable (title, description…) để edit mode vẫn sửa inline được.
+- **Giá trị dạng mảng/list render bằng `<ul><li>`** (vd danh sách category URI) để e2e đếm được `ul > li` theo số lượng kỳ vọng; khi rỗng render text mốc cố định (vd `No categories assigned`).
+- **Value phải render ĐÚNG FIDELITY như thật theo từng kiểu property** — việc tách cột Property/Expected chỉ để user phân biệt render nào ứng với property nào, **KHÔNG được làm giảm độ chân thực** của phần render:
+  - **Image / media**: ngoài việc show URL, **vẫn render `<img src=...>` thật** (hoặc media tương ứng) để giống case thực tế.
+  - **Content area / block reference**: render **component con tương ứng** qua SDK renderer (vd `<ContentAreaRenderer>` / `contentArea.map(...)`), không chỉ show metadata/đếm số item.
+  - **Link**: render `<a href>` thật; **RichText/HTML**: render nội dung đã format; v.v.
+  - Nguyên tắc: cột `Value` = đúng cái user sẽ thấy ở production cho property đó; cột `Property`/`Expected` chỉ là nhãn bao quanh.
+- **Ép card nền sáng** (`background:#fff; color:#1a1a1a` trên `<table>`) để đọc rõ bất kể shell của sample đang theme tối. Chữ phụ (expected/breadcrumb/key) dùng tối thiểu `#555–#777` cho đủ tương phản.
+- **Style cell khai báo 1 lần** (thStyle/tdName/tdValue/tdExpected/muted/mono) rồi tái dùng cho mọi dòng — nhất quán giữa các page.
+- Giữ `__typename` indicator + `<h1>{content.title}</h1>` phía trên bảng (h1 làm anchor "page rendered" cho e2e).
+
+Mẫu tham chiếu: `src/qa/CMS_56217_TaxonomyCategories.tsx` (+ e2e khớp DOM: `_qa/tests/e2e/sdk/cms-56217-taxonomy-categories.spec.ts`).
 
 ---
 
@@ -181,6 +201,68 @@ const results = await getContentByPath(config, lookup!.path); // vẫn test đú
 - `findContentPathByDisplayName` dùng raw GraphQL query filter `_metadata.displayName.eq` (không đi qua SDK) — chỉ để "tìm path", còn assertion chính vẫn phải gọi `getContentByPath` (qua `/qa/apis/run`) để test đúng SDK code path.
 - Env var convention: `{TICKET}_TEST_DISPLAY_NAME` để override khi cần (không phải path).
 - Lưu ý: `getContentByPath` trong SDK thật ra match cả `url.default` lẫn `url.hierarchical` (xem `packages/optimizely-cms-sdk/src/graph/filters.ts`) nên nhiều trường hợp move folder vẫn không vỡ path `default` — nhưng dùng displayName vẫn an toàn hơn và không cần biết cơ chế URL bên dưới.
+
+---
+
+## 6.5 Fixture-Driven Data Model (mô hình dài hạn — CMS-56217)
+
+Mô hình để không phải tạo data tay và không hardcode tên page. 3 lớp tách biệt:
+
+### Naming convention (đặt tên MỘT lần qua `slug`)
+
+Mỗi story có một **feature slug** chuẩn = base name của file TSX, vd `CMS_56217_TaxonomyCategories`. Khai báo `slug` trong fixture definition; engine **derive** các tên còn lại để chúng luôn nhất quán:
+
+| Artifact | Dạng | Ví dụ |
+|---|---|---|
+| Feature slug (canonical) | `CMS_{ID}_{Descriptor}` | `CMS_56217_TaxonomyCategories` |
+| TSX component | `{slug}.tsx` | `CMS_56217_TaxonomyCategories.tsx` |
+| Package data file | `{slug}.episerverdata` | `_qa/fixtures/packages/CMS_56217_TaxonomyCategories.episerverdata` |
+| featureContainer displayName (create) | `{slug}` (derive) | `CMS_56217_TaxonomyCategories` |
+| Fixture/test module | kebab(`{slug}`) | `cms-56217-taxonomy-categories.ts` |
+
+`featureContainer.displayName` và `packageFile` **mặc định suy ra từ `slug`** — không cần gõ lại. Case `automationId` đặt dạng `CMS_{ID}_{Case}` (== displayName trong CMS/package để resolve-by-identity khớp).
+
+3 lớp tách biệt:
+
+1. **Fixture definition** (`_qa/fixtures/cms-{id}.ts`) — single source of truth. `StoryFixtureDefinition` liệt kê các `cases` (nhiều instance của CÙNG content type, khác nhau ở data), mỗi case có `automationId` ổn định, `properties`, `categories`, và `expected` để test assert. Content type vẫn **code-first** trong sample app; fixture chỉ tham chiếu key dạng string.
+2. **Ensure engine** (`_qa/helpers/fixtures.ts`) — `ensureStoryFixtures(config, def, { container })` provision data qua Integration API, trả map `{ caseId → { key, path, created } }`. Idempotent: resolve mỗi case theo `automationId` (== displayName) qua Graph; chỉ tạo cái còn thiếu; poll Graph tới khi queryable.
+3. **Test scripts** — dùng `key`/`path` đã resolve. API chính cần test là `getContentByPath` (đúng luồng view-mode), nên fetch theo `path`.
+
+### Chỉ 1 GUID — feature container tự tạo
+
+Caller chỉ cung cấp 1 GUID root qua `CMS_TEST_CONTAINER` (override theo story: `CMS_TEST_CONTAINER_CMS_{id}`). Khi story khai báo `featureContainer`, engine tự tạo/reuse một container riêng (vd `BlankExperience` tên `CMS-56217 Taxonomy`) dưới root và đặt toàn bộ cases vào đó — tách data mỗi feature (vd `/en/auto/cms-56217-taxonomy/...`) khỏi content thật. Nếu env chưa set, cả suite bị skip (CI vẫn xanh).
+
+### Integration API v1 — các điểm bẫy (đã verify live)
+
+- `displayName`, `locale`, `properties` nằm **trong** `initialVersion` (KHÔNG phải top-level `NewContent`).
+- Mỗi property value bọc `{ value: ... }` (không phải scalar trần).
+- **Taxonomy categories là một property** tên `categories` với `{ value: [uris] }`, giá trị là **URI đầy đủ** `cms://taxonomy/categories/<key>` — không phải key trần, không phải field item-level riêng.
+- Content tạo ở **Draft** rồi **publish** bằng call riêng `POST /content/{key}/versions/{version}:publish` (không set status khi create).
+- Content key là **GUID 32-hex không dấu gạch**; normalize UUID có gạch trước khi gửi (container + key).
+- Để `getContentByPath` chạy, parent phải nằm trong **cây page được route**. Resolve feature container qua **Integration API** (`GET /content/{key}/items` + từng child `GET .../versions` lấy displayName) — `BlankExperience` KHÔNG resolve ổn định theo displayName qua Graph.
+- Seed dùng hậu tố `*.seed.ts` + `vitest.seed.config.ts` để không chạy chung với suite thường; chạy `pnpm seed:cms-{id}`.
+
+### Provision strategy: `create` | `package` | `manual`
+
+`StoryFixtureDefinition.provision` chọn cách tạo content khi thiếu (mặc định `'create'`):
+
+- `'create'` — build từng case qua Integration API. Hợp cho **content đơn giản** (page + scalar + categories). Brittle với content phức tạp (experience + nhiều ref) vì phải hand-build payload.
+- `'package'` — import một file `.episerverdata` đã commit (`def.packageFile`, tương đối so với `_qa/`). Hợp cho **content phức tạp**: QA dựng trong UI một lần → **export từ UI** → commit file. Automation chỉ import. Engine resolve-by-identity trước, chỉ import khi thiếu.
+- `'manual'` — chỉ resolve theo identity; thiếu thì **fail kèm recipe** (không có code tạo). Fallback khi không muốn tạo tự động.
+
+### Package import endpoint + media type (đã verify live)
+
+- Endpoint: `POST /v1/experimental/packages`
+- `Content-Type: application/vnd.episerver.cms.data` (hằng `PACKAGE_MEDIA_TYPE`), body là file `.episerverdata` (thực chất là zip) gửi raw.
+- Query options: `Container` (target container key, vd Auto), `OverwriteExistingContentItems` (true = upsert theo GUID, idempotent; false = luôn tạo mới dưới `Container` → trùng khi re-import), `IgnoreDataLossWarnings` (bỏ qua cảnh báo breaking), `Locale` (tùy chọn).
+- Package tự chứa cả **content type** lẫn **content instance**. Import trả `{ success, outcomes, errors, warnings }`. **Endpoint trả HTTP 200 kể cả khi import FAIL** (`success: false`) → `importPackage` check `success` và throw kèm `errors` (tránh timeout âm thầm).
+- ⚠️ **Package KHÔNG được re-define content type đã code-first trên site.** Nếu package kèm epiDefinition cho type đã tồn tại (vd `BlankExperience` khi export cả experience `Auto`), import fail: `"breaking changes / data loss"`, và khi ép `IgnoreDataLossWarnings` thì `"Cannot delete system property 'Layout'"`. Cách tránh: **export content-only** (không kèm experiences/type redefinition). Package đúng sẽ báo `0 content type(s)` + `N content(s)` imported.
+- Lưu ý: CMS này **chỉ hỗ trợ IMPORT qua API, không export** — build trong UI rồi export từ UI để tạo file package. Với `overwrite=true`, content có sẵn đối chiếu theo **GUID** (giữ vị trí gốc trong package); `Container` chỉ áp dụng khi tạo item mới. Package mode KHÔNG tạo feature container — vị trí đã baked trong package.
+- Helper: `importPackage(config, filePath, { container, overwrite, ignoreDataLossWarnings, locale })` trong `_qa/helpers/content-api.ts`.
+
+### Kỷ luật: ĐỂ sai lệch thật FAIL
+
+Assertion theo **contract tài liệu**, không theo hành vi đang lỗi. Không nới assertion để xanh khi SDK sai — test đỏ là cách để bug được phát hiện và log. Ví dụ (CMS-56217): `resolvedCategories[].path` chỉ leaf-only và `path[].key` là bare key trong khi top-level `key` là URI đầy đủ; test hierarchical assert `path[last].key === key` **strict** và fail có chủ đích, trỏ tới `docs/16-taxonomy-categories.md` / spec FR-005 và `buildPath()` trong `packages/optimizely-cms-sdk/src/graph/operations.ts`.
 
 ---
 
@@ -378,3 +460,36 @@ Skill `auto-generate-js-sdk-testscript` tại:
 - `SKILL.md` — workflow 6 bước: path discovery → analyze ticket → generate code → push → create test → run
 - `guidelines.md` — code patterns, registry rules, gotchas, run commands
 - Step 0 tự tìm `JS_SDK_ROOT` bằng cách search `pnpm-workspace.yaml` — không hardcode path
+
+---
+
+## 10. Agent Full Flow — Analyze → Gen TCs → Test Scripts → Run (2026-09-29)
+
+### Context
+
+Manager request: "tích hợp vào Agent full flow từ analyze → gen TCs → test scripts → run". Team FW/Delivery/Infra — non-UI tickets (SDK, API, Graph) phù hợp nhất vì gen scripts không cần locator phức tạp.
+
+### Hiện trạng — Skills đã cover toàn bộ pipeline
+
+| Bước | Skill | Trạng thái |
+|------|-------|------------|
+| Analyze | `/qa-analyze-ticket` | ✅ Done — auto-detect domain, đọc JIRA+PRs, sinh test cases P0-P3 |
+| Gen TCs | Built into analyze step | ✅ Done |
+| Gen Scripts (C#) | `/auto-generate-graph-sdk-testscript` | ✅ Done — JIRA → C# controller + Playwright scenario |
+| Gen Scripts (TS) | `/auto-generate-js-sdk-testscript` | ✅ Done — JIRA → TSX + vitest/Playwright tests |
+| Run (UI) | `/qa-execute-test-case` | ✅ Done — CMS Edit UI via Playwright MCP |
+| Run (SDK) | `/qa-execute-js-sdk-test` | ✅ Done — vitest + Playwright e2e |
+
+Từ góc nhìn QA: `/auto-generate-js-sdk-testscript CMS-XXXXX` đã chạy analyze → gen → run → report trong 1 lần trigger. UX giống hệt 1 hypothetical `/qa-full-flow`.
+
+### Câu hỏi mở — "Agent" khác "Skill" ở đâu?
+
+Pipeline steps giống nhau. Sự khác biệt thực sự nằm ở **operational model**:
+
+| Dimension | Skill hiện tại | Agent (nếu build) |
+|-----------|---------------|-------------------|
+| **Execution** | QA mở terminal, ngồi chờ, approve từng bước | Chạy background, xong báo kết quả |
+| **Scale** | 1 ticket / 1 lần trigger | Batch: 10 tickets, xử lý overnight |
+| **Trigger** | QA gõ lệnh thủ công | CI-triggered: PR merge → tự chạy |
+
+Cần clarify với manager: muốn dimension nào? Nếu chỉ "1 lệnh, chạy tuần tự, ra kết quả" → skill hiện tại đã đủ.

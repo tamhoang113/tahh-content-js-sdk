@@ -141,3 +141,72 @@ export async function findContentPathByDisplayName(
     types: item._metadata.types ?? [],
   };
 }
+
+/**
+ * Resolve just a content item's key by display name, without requiring a URL
+ * path. Useful for container items (e.g. an Experience used as a feature
+ * folder) that we address by key when creating children, where the public URL
+ * is irrelevant.
+ */
+export async function findContentKeyByDisplayName(
+  config: SiteConfig,
+  displayName: string,
+): Promise<string | undefined> {
+  const query = `query($displayName: String!) {
+    _Content(
+      where: { _metadata: { displayName: { eq: $displayName } } }
+      limit: 1
+    ) {
+      items { _metadata { key } }
+    }
+  }`;
+
+  const data = await graphQuery(config, query, { displayName });
+  return data?._Content?.items?.[0]?._metadata?.key;
+}
+
+/**
+ * Batched variant of {@link findContentPathByDisplayName}: resolve many display
+ * names in a SINGLE Graph query (`displayName { in: [...] }`) instead of one
+ * request per name. Returns a map keyed by display name; names with no match or
+ * no resolvable path are simply absent from the map.
+ */
+export async function findContentPathsByDisplayNames(
+  config: SiteConfig,
+  displayNames: string[],
+): Promise<Map<string, ContentLookupResult>> {
+  const result = new Map<string, ContentLookupResult>();
+  if (displayNames.length === 0) return result;
+
+  const query = `query($names: [String!]!) {
+    _Content(
+      where: { _metadata: { displayName: { in: $names } } }
+      limit: 100
+    ) {
+      items {
+        __typename
+        _metadata {
+          key
+          displayName
+          types
+          url { default hierarchical }
+        }
+      }
+    }
+  }`;
+
+  const data = await graphQuery(config, query, { names: displayNames });
+  const items: any[] = data?._Content?.items ?? [];
+  for (const item of items) {
+    const displayName = item._metadata?.displayName;
+    const path = item._metadata?.url?.default ?? item._metadata?.url?.hierarchical;
+    if (!displayName || !path || result.has(displayName)) continue;
+    result.set(displayName, {
+      key: item._metadata.key ?? '',
+      displayName,
+      path,
+      types: item._metadata.types ?? [],
+    });
+  }
+  return result;
+}
