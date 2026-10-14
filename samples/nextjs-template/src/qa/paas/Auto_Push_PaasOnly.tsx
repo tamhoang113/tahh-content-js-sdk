@@ -13,11 +13,13 @@ export const AutoBinaryAllFields = contentType({
   baseType: '_component',
   properties: {
     simpleBinary: {
-      type: 'binary',
+      type: 'string',
+      format: 'blob',
     },
 
     fullBinary: {
-      type: 'binary',
+      type: 'string',
+      format: 'blob',
       displayName: 'Full Binary',
       description: 'A binary with every field set',
       isRequired: true,
@@ -28,7 +30,8 @@ export const AutoBinaryAllFields = contentType({
     },
 
     hiddenBinary: {
-      type: 'binary',
+      type: 'string',
+      format: 'blob',
       displayMode: 'hidden',
     },
   },
