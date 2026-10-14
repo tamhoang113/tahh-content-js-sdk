@@ -87,7 +87,7 @@ export default function CMS56217TaxonomyPageComponent({ content }: CMS56217Taxon
           {/* title */}
           <tr data-property="title">
             <td style={tdName}>content.title</td>
-            <td style={tdValue} {...pa('title')}>
+            <td data-col="value" style={tdValue} {...pa('title')}>
               {content.title ?? <span style={muted}>—</span>}
             </td>
             <td style={tdExpected}>Required non-empty string</td>
@@ -96,7 +96,7 @@ export default function CMS56217TaxonomyPageComponent({ content }: CMS56217Taxon
           {/* description */}
           <tr data-property="description">
             <td style={tdName}>content.description</td>
-            <td style={tdValue} {...pa('description')}>
+            <td data-col="value" style={tdValue} {...pa('description')}>
               {content.description ?? <span style={muted}>—</span>}
             </td>
             <td style={tdExpected}>Optional string</td>
@@ -105,7 +105,7 @@ export default function CMS56217TaxonomyPageComponent({ content }: CMS56217Taxon
           {/* _metadata.categories (raw URIs) */}
           <tr data-property="_metadata.categories">
             <td style={tdName}>content._metadata.categories</td>
-            <td style={tdValue}>
+            <td data-col="value" style={tdValue}>
               {categories && categories.length > 0 ? (
                 <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
                   {categories.map((uri, index) => (
@@ -124,7 +124,7 @@ export default function CMS56217TaxonomyPageComponent({ content }: CMS56217Taxon
               complete path (each node's key & displayName), plus a raw JSON dump. */}
           <tr data-property="_metadata.resolvedCategories">
             <td style={tdName}>content._metadata.resolvedCategories</td>
-            <td style={tdValue}>
+            <td data-col="value" style={tdValue}>
               {resolvedCategories ? (
                 resolvedCategories.length > 0 ? (
                   <>

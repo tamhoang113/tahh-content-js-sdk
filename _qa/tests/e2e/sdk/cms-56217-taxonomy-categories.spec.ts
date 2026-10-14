@@ -74,59 +74,55 @@ test.describe('View — CMS-56217 Taxonomy', () => {
       // Title (required property) must render as the page heading.
       await expect(page.locator('h1')).not.toBeEmpty();
 
-      // The property table always renders a row for _metadata.categories.
-      const rawRow = page.locator('tr[data-property="_metadata.categories"]');
-      await expect(rawRow).toBeVisible();
+      // Verify title renders with exact fixture value
+      const titleCell = page.locator('tr[data-property="title"] td[data-col="value"]');
+      await expect(titleCell).toContainText(def.properties.title as string);
+
+      // ─── _metadata.categories — locate value cell precisely ──────────
+      const rawValueCell = page.locator('tr[data-property="_metadata.categories"] td[data-col="value"]');
+      await expect(rawValueCell).toBeVisible();
 
       if (expectedCount > 0) {
-        await expect(rawRow.getByText('No categories assigned')).toHaveCount(0);
-        const items = rawRow.locator('ul > li');
-        await expect(items).toHaveCount(expectedCount);
+        await expect(rawValueCell.getByText('No categories assigned')).toHaveCount(0);
+        await expect(rawValueCell.locator('ul > li')).toHaveCount(expectedCount);
 
-        // Verify each rendered category URI contains the expected term key
         const assignedTerms = def.categories as string[];
         for (const termKey of assignedTerms) {
           await expect(
-            rawRow.locator('ul > li', { hasText: termKey }),
+            rawValueCell.locator('ul > li', { hasText: termKey }),
             `category list should contain term "${termKey}"`,
           ).toHaveCount(1);
         }
       } else {
-        await expect(rawRow.getByText('No categories assigned')).toBeVisible();
+        await expect(rawValueCell.getByText('No categories assigned')).toBeVisible();
       }
 
-      // Verify title renders with exact fixture value
-      const titleText = await page.locator('h1').innerText();
-      expect(titleText).toContain(def.properties.title as string);
-
-      // For hierarchical case: verify resolvedCategories renders key + full path breadcrumb
+      // ─── _metadata.resolvedCategories — hierarchical case ────────────
       if ((def.expected as any)?.hasHierarchy) {
-        const resolvedRow = page.locator('tr[data-property="_metadata.resolvedCategories"]');
-        await expect(resolvedRow).toBeVisible();
+        const resolvedValueCell = page.locator('tr[data-property="_metadata.resolvedCategories"] td[data-col="value"]');
+        await expect(resolvedValueCell).toBeVisible();
 
-        const resolvedText = await resolvedRow.innerText();
         const expectedTermKeys = (def.expected as any).resolvedTermKeys as string[];
         const expectedDisplayName = (def.expected as any).resolvedDisplayName as string;
         const hierarchyPath = (def.expected as any).hierarchyPath as Array<{ key: string; displayName: string }>;
 
-        // Verify resolved category key and displayName
         for (const termKey of expectedTermKeys) {
-          expect(resolvedText, `resolvedCategories should show key "${termKey}"`)
-            .toContain(termKey);
+          await expect(
+            resolvedValueCell.getByText(`Key: ${termKey}`),
+            `resolvedCategories should show Key: ${termKey}`,
+          ).toBeVisible();
         }
-        expect(resolvedText, `resolvedCategories should show displayName "${expectedDisplayName}"`)
-          .toContain(expectedDisplayName);
+        await expect(resolvedValueCell.locator('div', { hasText: expectedDisplayName }).first())
+          .toBeVisible();
 
-        // Verify full hierarchy path from fixture
-        for (const node of hierarchyPath) {
-          expect(resolvedText, `path should contain node key "${node.key}"`)
-            .toContain(node.key);
-          expect(resolvedText, `path should contain node displayName "${node.displayName}"`)
-            .toContain(node.displayName);
+        await expect(resolvedValueCell.getByText(`Path (${hierarchyPath.length})`)).toBeVisible();
+
+        const pathItems = resolvedValueCell.locator('ol ol > li');
+        await expect(pathItems).toHaveCount(hierarchyPath.length);
+        for (let i = 0; i < hierarchyPath.length; i++) {
+          await expect(pathItems.nth(i)).toContainText(hierarchyPath[i].displayName);
+          await expect(pathItems.nth(i)).toContainText(`(${hierarchyPath[i].key})`);
         }
-
-        // Path depth matches fixture
-        expect(resolvedText).toContain(`Path (${hierarchyPath.length})`);
       }
     });
   }
@@ -167,66 +163,54 @@ test.describe('Edit — CMS-56217 Taxonomy', () => {
       await expect(body).not.toContainText('Application Error');
       await expect(body).not.toContainText('500 Internal Server Error');
 
-      // Verify title in h1
-      const h1 = frame.locator('h1');
-      await expect(h1).toContainText(def.properties.title as string);
+      // Verify title via value cell
+      const titleCell = frame.locator('tr[data-property="title"] td[data-col="value"]');
+      await expect(titleCell).toContainText(def.properties.title as string);
 
-      // ─── _metadata.categories row ────────────────────────────────────
-      const rawRow = frame.locator('tr[data-property="_metadata.categories"]');
-      await expect(rawRow).toBeVisible();
+      // ─── _metadata.categories — locate value cell precisely ──────────
+      const rawValueCell = frame.locator('tr[data-property="_metadata.categories"] td[data-col="value"]');
+      await expect(rawValueCell).toBeVisible();
 
       if (expectedCount > 0) {
-        await expect(rawRow.getByText('No categories assigned')).toHaveCount(0);
-        await expect(rawRow.locator('ul > li')).toHaveCount(expectedCount);
+        await expect(rawValueCell.getByText('No categories assigned')).toHaveCount(0);
+        await expect(rawValueCell.locator('ul > li')).toHaveCount(expectedCount);
 
         const assignedTerms = def.categories as string[];
         for (const termKey of assignedTerms) {
           await expect(
-            rawRow.locator('ul > li', { hasText: termKey }),
+            rawValueCell.locator('ul > li', { hasText: termKey }),
             `edit: category list should contain term "${termKey}"`,
           ).toHaveCount(1);
         }
       } else {
-        await expect(rawRow.getByText('No categories assigned')).toBeVisible();
+        await expect(rawValueCell.getByText('No categories assigned')).toBeVisible();
       }
 
-      // ─── _metadata.resolvedCategories row (hierarchical case) ────────
+      // ─── _metadata.resolvedCategories — hierarchical case ────────────
       if ((def.expected as any)?.hasHierarchy) {
-        const resolvedRow = frame.locator('tr[data-property="_metadata.resolvedCategories"]');
-        await expect(resolvedRow).toBeVisible();
+        const resolvedValueCell = frame.locator('tr[data-property="_metadata.resolvedCategories"] td[data-col="value"]');
+        await expect(resolvedValueCell).toBeVisible();
 
         const expectedTermKeys = (def.expected as any).resolvedTermKeys as string[];
         const expectedDisplayName = (def.expected as any).resolvedDisplayName as string;
         const hierarchyPath = (def.expected as any).hierarchyPath as Array<{ key: string; displayName: string }>;
 
-        // Verify resolved category key rendered in the Key: line
         for (const termKey of expectedTermKeys) {
           await expect(
-            resolvedRow.getByText(`Key: ${termKey}`),
+            resolvedValueCell.getByText(`Key: ${termKey}`),
             `edit: resolvedCategories should show Key: ${termKey}`,
           ).toBeVisible();
         }
+        await expect(resolvedValueCell.locator('div', { hasText: expectedDisplayName }).first())
+          .toBeVisible();
 
-        // Verify displayName rendered as bold heading
-        await expect(
-          resolvedRow.locator('div', { hasText: expectedDisplayName }).first(),
-          `edit: resolvedCategories should show displayName "${expectedDisplayName}"`,
-        ).toBeVisible();
+        await expect(resolvedValueCell.getByText(`Path (${hierarchyPath.length})`)).toBeVisible();
 
-        // Verify path depth
-        await expect(
-          resolvedRow.getByText(`Path (${hierarchyPath.length})`),
-          `edit: path depth should be ${hierarchyPath.length}`,
-        ).toBeVisible();
-
-        // Verify each path node rendered as ordered list items
-        const pathItems = resolvedRow.locator('ol ol > li');
+        const pathItems = resolvedValueCell.locator('ol ol > li');
         await expect(pathItems).toHaveCount(hierarchyPath.length);
-
         for (let i = 0; i < hierarchyPath.length; i++) {
-          const item = pathItems.nth(i);
-          await expect(item).toContainText(hierarchyPath[i].displayName);
-          await expect(item).toContainText(`(${hierarchyPath[i].key})`);
+          await expect(pathItems.nth(i)).toContainText(hierarchyPath[i].displayName);
+          await expect(pathItems.nth(i)).toContainText(`(${hierarchyPath[i].key})`);
         }
       }
 
