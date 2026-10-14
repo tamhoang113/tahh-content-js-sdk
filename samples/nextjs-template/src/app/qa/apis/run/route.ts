@@ -82,14 +82,15 @@ export async function POST(req: NextRequest) {
         if (!params.key) return NextResponse.json({ error: 'key is required' }, { status: 400 });
         result = await client.getContent(
           { key: params.key, locale: params.locale || undefined, version: params.version || undefined },
-          queryOpts,
+          { ...queryOpts, resolveTaxonomy: params.resolveTaxonomy === 'true' },
         );
         break;
       }
 
       case 'getContentByPath': {
         if (!params.path) return NextResponse.json({ error: 'path is required' }, { status: 400 });
-        result = await client.getContentByPath(params.path, { ...queryOpts, host });
+        const resolveTaxonomy = params.resolveTaxonomy === 'true';
+        result = await client.getContentByPath(params.path, { ...queryOpts, host, resolveTaxonomy });
         break;
       }
 

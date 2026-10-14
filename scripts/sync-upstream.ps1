@@ -4,7 +4,7 @@ param(
     [string]$UpstreamBranch = 'main',
     [string]$TargetBranch = 'main',
     [string]$LockfilePath = 'pnpm-lock.yaml',
-    [string[]]$PreserveOursPaths = @('.github/workflows/vercel-prod.yaml'),
+    [string[]]$PreserveOursPaths = @('.github/workflows/vercel-prod.yaml', 'samples/nextjs-template/src/app/layout.tsx'),
     [string[]]$RequiredPaths = @('_qa/helpers/sdk-api.ts', 'samples/nextjs-template/src/qa/_registry.ts'),
     [switch]$RegenerateLockfile = $true,
     [switch]$Push

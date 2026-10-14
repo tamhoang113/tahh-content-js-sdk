@@ -28,6 +28,13 @@ const TERMS = {
   internal: 'Taxanomy_Internal',
 } as const;
 
+const HIERARCHY_PATH = [
+  { key: 'Auto', displayName: 'Auto', taxonomy: 'categories', usage: 'Public' },
+  { key: 'Taxanomy', displayName: 'Taxanomy', taxonomy: 'categories', usage: 'Public' },
+  { key: 'Taxanomy_Level2', displayName: 'Taxanomy Level2', taxonomy: 'categories', usage: 'Public' },
+  { key: 'Taxanomy_Level3', displayName: 'Taxanomy Level3', taxonomy: 'categories', usage: 'Public' },
+] as const;
+
 const cases = {
   /** A page with exactly one category assigned. */
   oneTaxonomy: {
@@ -39,6 +46,7 @@ const cases = {
     categories: [TERMS.taxonomy],
     expected: {
       rawCategoryCount: 1,
+      resolvedTermKeys: [TERMS.taxonomy],
     },
   },
 
@@ -52,6 +60,7 @@ const cases = {
     categories: [TERMS.taxonomy, TERMS.internal],
     expected: {
       rawCategoryCount: 2,
+      resolvedTermKeys: [TERMS.taxonomy, TERMS.internal],
     },
   },
 
@@ -66,6 +75,11 @@ const cases = {
     expected: {
       rawCategoryCount: 1,
       hasHierarchy: true,
+      resolvedTermKeys: [TERMS.level3],
+      resolvedDisplayName: 'Taxanomy Level3',
+      resolvedTaxonomy: 'categories',
+      resolvedUsage: 'Public',
+      hierarchyPath: HIERARCHY_PATH,
     },
   },
 

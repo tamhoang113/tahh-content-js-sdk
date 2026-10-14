@@ -29,7 +29,9 @@ import { CMS_56217, type CMS56217CaseId } from '../../fixtures/cms-56217.js';
 type ResolvedCategory = {
   key: string;
   displayName: string | null;
-  path: Array<{ key: string; displayName: string | null }>;
+  taxonomy: string;
+  usage: string;
+  path: Array<{ key: string; displayName: string | null; taxonomy: string; usage: string }>;
 };
 
 const config = loadSiteConfig('nextjs-template');
@@ -60,16 +62,20 @@ describe.skipIf(!container)('CMS-56217: Taxonomy Categories Support', () => {
 
   test('_metadata.categories is included (single category)', async () => {
     const def = CMS_56217.cases.oneTaxonomy;
+    const expectedTerms = def.expected!.resolvedTermKeys as string[];
     const content = await fetchFirstByPath(fixtures.oneTaxonomy.path);
     expect(content?._metadata, '_metadata should be present').toBeDefined();
 
     const categories = content._metadata?.categories as string[] | undefined;
     expect(Array.isArray(categories), 'categories should be an array').toBe(true);
-    expect(categories).toHaveLength(def.expected!.rawCategoryCount as number);
-    categories!.forEach((uri: string, i: number) => {
-      expect(typeof uri, `categories[${i}] should be a string`).toBe('string');
-      expect(uri.length, `categories[${i}] should not be empty`).toBeGreaterThan(0);
-    });
+    expect(categories).toHaveLength(expectedTerms.length);
+
+    for (const termKey of expectedTerms) {
+      expect(
+        categories!.some((uri: string) => uri.includes(termKey)),
+        `categories should contain term "${termKey}"`,
+      ).toBe(true);
+    }
   });
 
   test('content with no categories returns empty array', async () => {
@@ -84,6 +90,7 @@ describe.skipIf(!container)('CMS-56217: Taxonomy Categories Support', () => {
 
   test('resolveTaxonomy: true populates _metadata.resolvedCategories', async () => {
     const def = CMS_56217.cases.multiTaxonomy;
+    const expectedTerms = def.expected!.resolvedTermKeys as string[];
     const content = await fetchFirstByPath(fixtures.multiTaxonomy.path, true);
     const resolvedCategories = content?._metadata?.resolvedCategories as
       | ResolvedCategory[]
@@ -93,41 +100,66 @@ describe.skipIf(!container)('CMS-56217: Taxonomy Categories Support', () => {
       resolvedCategories,
       '_metadata.resolvedCategories should be present when resolveTaxonomy: true',
     ).toBeDefined();
-    expect(resolvedCategories).toHaveLength(def.expected!.rawCategoryCount as number);
+    expect(resolvedCategories).toHaveLength(expectedTerms.length);
+
+    const resolvedKeys = resolvedCategories!.map((r: ResolvedCategory) => r.key);
+    for (const termKey of expectedTerms) {
+      expect(
+        resolvedKeys.some((k: string) => k.includes(termKey)),
+        `resolvedCategories should contain term "${termKey}"`,
+      ).toBe(true);
+    }
+
+    resolvedCategories!.forEach((resolved: ResolvedCategory, i: number) => {
+      expect(resolved.key, `resolvedCategories[${i}].key required`).toBeTruthy();
+      expect(resolved.displayName, `resolvedCategories[${i}].displayName required`).toBeTruthy();
+      expect(resolved.taxonomy, `resolvedCategories[${i}].taxonomy`).toBe('categories');
+      expect(resolved.usage, `resolvedCategories[${i}].usage`).toBe('Public');
+      expect(Array.isArray(resolved.path), `resolvedCategories[${i}].path is array`).toBe(true);
+      expect(resolved.path.length, `resolvedCategories[${i}].path should not be empty`).toBeGreaterThan(0);
+    });
 
     const rawCategories = content._metadata?.categories as string[] | undefined;
-    if (rawCategories) {
-      // 1:1 correspondence in order.
-      expect(resolvedCategories!.length).toBe(rawCategories.length);
-      resolvedCategories!.forEach((resolved: ResolvedCategory, i: number) => {
-        expect(resolved.key, `resolvedCategories[${i}].key required`).toBeTruthy();
-        expect(Array.isArray(resolved.path), `resolvedCategories[${i}].path is array`).toBe(true);
-      });
-    }
+    expect(rawCategories).toHaveLength(expectedTerms.length);
   });
 
   test('hierarchical category exposes a path breadcrumb', async () => {
+    const def = CMS_56217.cases.multiHierarchical;
+    const expectedTermKeys = def.expected!.resolvedTermKeys as string[];
+    const expectedDisplayName = def.expected!.resolvedDisplayName as string;
+    const expectedTaxonomy = def.expected!.resolvedTaxonomy as string;
+    const expectedUsage = def.expected!.resolvedUsage as string;
+    const expectedPath = def.expected!.hierarchyPath as Array<{
+      key: string; displayName: string; taxonomy: string; usage: string;
+    }>;
+
     const content = await fetchFirstByPath(fixtures.multiHierarchical.path, true);
     const resolvedCategories = content?._metadata?.resolvedCategories as
       | ResolvedCategory[]
       | undefined;
-
     expect(resolvedCategories, 'resolvedCategories should be present').toBeDefined();
+    expect(resolvedCategories).toHaveLength(expectedTermKeys.length);
+
     const first = resolvedCategories![0];
     expect(Array.isArray(first?.path), 'path should be an array').toBe(true);
 
-    // Documented contract (docs/16-taxonomy-categories.md, spec FR-005): `path`
-    // is the full breadcrumb from root to the term, and the term itself is the
-    // last element with a `key` matching the resolved category's `key`.
-    //
-    // This is asserted STRICTLY on purpose so real SDK deviations surface as
-    // failures (so they can be logged/reported), rather than being hidden:
-    //   - path is currently leaf-only (length 1) for a nested term, and
-    //   - path[].key is a bare term key while the top-level key is a full URI.
-    const last = first.path[first.path.length - 1];
+    expect(first.key, 'resolved key').toContain(expectedTermKeys[0]);
+    expect(first.displayName, 'resolved displayName').toBe(expectedDisplayName);
+    expect(first.taxonomy, 'resolved taxonomy').toBe(expectedTaxonomy);
+    expect(first.usage, 'resolved usage').toBe(expectedUsage);
+
+    expect(first.path).toHaveLength(expectedPath.length);
+
+    expectedPath.forEach((expected, i) => {
+      expect(first.path[i]?.key, `path[${i}].key`).toBe(expected.key);
+      expect(first.path[i]?.displayName, `path[${i}].displayName`).toBe(expected.displayName);
+      expect(first.path[i]?.taxonomy, `path[${i}].taxonomy`).toBe(expected.taxonomy);
+      expect(first.path[i]?.usage, `path[${i}].usage`).toBe(expected.usage);
+    });
+
     expect(
-      last?.key,
-      'path[last].key should equal the resolved category key (full breadcrumb + matching URI)',
+      first.path[first.path.length - 1]?.key,
+      'path[last].key should equal the resolved category key',
     ).toBe(first.key);
   });
 });

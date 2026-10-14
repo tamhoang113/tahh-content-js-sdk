@@ -47,16 +47,16 @@ import Location, { LocationContentType } from '@/components/Location';
 import BlankExperience from '@/components/BlankExperience';
 import FAQ, { FAQContentType } from '@/components/FAQ';
 import { QA_CONTENT_TYPES, QA_RESOLVERS } from '@/qa/_registry';
+import { withQaConfig } from '@/qa/_config';
 
-config({
+config(withQaConfig({
   apiKey: process.env.OPTIMIZELY_GRAPH_SINGLE_KEY || 'your api key here',
   graphUrl: process.env.OPTIMIZELY_GRAPH_GATEWAY,
   fragment: {
     // These samples render body.html via dangerouslySetInnerHTML and body.json via RichText; the SDK default is 'json'.
     richTextFormat: 'both',
-    expandContracts: true,
-  }
-});
+  },
+}));
 
 initContentTypeRegistry([
   BlankExperienceContentType,

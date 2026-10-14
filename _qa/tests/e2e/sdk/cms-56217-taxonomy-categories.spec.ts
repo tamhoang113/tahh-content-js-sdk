@@ -32,7 +32,7 @@ import {
   loginToCms,
   openContentById,
   createErrorCollector,
-  getPreviewFrameText,
+  waitForPreviewFrame,
   ensureStoryFixtures,
   resolveTestContainer,
 } from '../../../helpers/index.js';
@@ -42,24 +42,19 @@ import { CMS_56217, type CMS56217CaseId } from '../../../fixtures/cms-56217.js';
 const config = loadSiteConfig('nextjs-template');
 const container = resolveTestContainer(CMS_56217.ticket);
 
-// Resolve the fixtures ONCE for the whole file (shared across view + edit specs).
-// ensureStoryFixtures is idempotent: it resolves each case by its display name
-// (== automationId) and only imports the package if a case is missing.
 let fixtures: Record<CMS56217CaseId, ResolvedFixture>;
 
-test.beforeAll(async () => {
-  if (!container) return; // suite is skipped below; don't provision
-  fixtures = await ensureStoryFixtures(config, CMS_56217, { container });
-});
-
-// Case ids come straight from the fixture catalog — adding a case there makes it
-// appear here automatically, no edits to this file.
 const caseIds = Object.keys(CMS_56217.cases) as CMS56217CaseId[];
 
 // ─── Level 2: View mode (navigate to resolved path, verify rendered DOM) ─────
 
 test.describe('View — CMS-56217 Taxonomy', () => {
   test.skip(!container, 'CMS_TEST_CONTAINER (or CMS_TEST_CONTAINER_CMS_56217) not set');
+
+  test.beforeAll(async () => {
+    if (!container) return;
+    fixtures = await ensureStoryFixtures(config, CMS_56217, { container });
+  });
 
   for (const caseId of caseIds) {
     const def = CMS_56217.cases[caseId];
@@ -83,13 +78,55 @@ test.describe('View — CMS-56217 Taxonomy', () => {
       const rawRow = page.locator('tr[data-property="_metadata.categories"]');
       await expect(rawRow).toBeVisible();
 
-      // Category presence is driven by the fixture's expected count — proving the
-      // SDK surfaced _metadata.categories into the rendered DOM.
       if (expectedCount > 0) {
         await expect(rawRow.getByText('No categories assigned')).toHaveCount(0);
-        await expect(rawRow.locator('ul > li')).toHaveCount(expectedCount);
+        const items = rawRow.locator('ul > li');
+        await expect(items).toHaveCount(expectedCount);
+
+        // Verify each rendered category URI contains the expected term key
+        const assignedTerms = def.categories as string[];
+        for (const termKey of assignedTerms) {
+          await expect(
+            rawRow.locator('ul > li', { hasText: termKey }),
+            `category list should contain term "${termKey}"`,
+          ).toHaveCount(1);
+        }
       } else {
         await expect(rawRow.getByText('No categories assigned')).toBeVisible();
+      }
+
+      // Verify title renders with exact fixture value
+      const titleText = await page.locator('h1').innerText();
+      expect(titleText).toContain(def.properties.title as string);
+
+      // For hierarchical case: verify resolvedCategories renders key + full path breadcrumb
+      if ((def.expected as any)?.hasHierarchy) {
+        const resolvedRow = page.locator('tr[data-property="_metadata.resolvedCategories"]');
+        await expect(resolvedRow).toBeVisible();
+
+        const resolvedText = await resolvedRow.innerText();
+        const expectedTermKeys = (def.expected as any).resolvedTermKeys as string[];
+        const expectedDisplayName = (def.expected as any).resolvedDisplayName as string;
+        const hierarchyPath = (def.expected as any).hierarchyPath as Array<{ key: string; displayName: string }>;
+
+        // Verify resolved category key and displayName
+        for (const termKey of expectedTermKeys) {
+          expect(resolvedText, `resolvedCategories should show key "${termKey}"`)
+            .toContain(termKey);
+        }
+        expect(resolvedText, `resolvedCategories should show displayName "${expectedDisplayName}"`)
+          .toContain(expectedDisplayName);
+
+        // Verify full hierarchy path from fixture
+        for (const node of hierarchyPath) {
+          expect(resolvedText, `path should contain node key "${node.key}"`)
+            .toContain(node.key);
+          expect(resolvedText, `path should contain node displayName "${node.displayName}"`)
+            .toContain(node.displayName);
+        }
+
+        // Path depth matches fixture
+        expect(resolvedText).toContain(`Path (${hierarchyPath.length})`);
       }
     });
   }
@@ -99,6 +136,11 @@ test.describe('View — CMS-56217 Taxonomy', () => {
 
 test.describe('Edit — CMS-56217 Taxonomy', () => {
   test.skip(!container, 'CMS_TEST_CONTAINER (or CMS_TEST_CONTAINER_CMS_56217) not set');
+
+  test.beforeAll(async () => {
+    if (!container) return;
+    fixtures = await ensureStoryFixtures(config, CMS_56217, { container });
+  });
 
   for (const caseId of caseIds) {
     const def = CMS_56217.cases[caseId];
@@ -113,26 +155,80 @@ test.describe('Edit — CMS-56217 Taxonomy', () => {
       const collector = createErrorCollector();
       collector.attach(page);
 
-      // Open the item in CMS edit mode by its RESOLVED key (not a hardcoded GUID).
       await openContentById(page, config, resolved.key);
 
-      // Preview content verification is a HARD requirement — do NOT wrap in
-      // try/catch; a slow iframe must surface as a real failure, not be swallowed.
-      const { text: previewText, frameUrl } = await getPreviewFrameText(page, resolved.key, 30_000);
+      // Get the preview iframe as a Frame, then use locators for precise assertions
+      const frame = await waitForPreviewFrame(page, 30_000);
+      await frame.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+      await frame.locator('body').waitFor({ state: 'visible', timeout: 10_000 });
 
-      expect(previewText, `Preview body empty/missing property table. frameUrl="${frameUrl}"`)
-        .toContain('_metadata.categories');
+      // Verify no application errors
+      const body = frame.locator('body');
+      await expect(body).not.toContainText('Application Error');
+      await expect(body).not.toContainText('500 Internal Server Error');
+
+      // Verify title in h1
+      const h1 = frame.locator('h1');
+      await expect(h1).toContainText(def.properties.title as string);
+
+      // ─── _metadata.categories row ────────────────────────────────────
+      const rawRow = frame.locator('tr[data-property="_metadata.categories"]');
+      await expect(rawRow).toBeVisible();
 
       if (expectedCount > 0) {
-        expect(previewText, `Expected ${expectedCount} categories but "No categories assigned" shown. frameUrl="${frameUrl}"`)
-          .not.toContain('No categories assigned');
+        await expect(rawRow.getByText('No categories assigned')).toHaveCount(0);
+        await expect(rawRow.locator('ul > li')).toHaveCount(expectedCount);
+
+        const assignedTerms = def.categories as string[];
+        for (const termKey of assignedTerms) {
+          await expect(
+            rawRow.locator('ul > li', { hasText: termKey }),
+            `edit: category list should contain term "${termKey}"`,
+          ).toHaveCount(1);
+        }
       } else {
-        expect(previewText, `Expected empty-category state. frameUrl="${frameUrl}"`)
-          .toContain('No categories assigned');
+        await expect(rawRow.getByText('No categories assigned')).toBeVisible();
       }
 
-      expect(previewText).not.toContain('Application Error');
-      expect(previewText).not.toContain('500 Internal Server Error');
+      // ─── _metadata.resolvedCategories row (hierarchical case) ────────
+      if ((def.expected as any)?.hasHierarchy) {
+        const resolvedRow = frame.locator('tr[data-property="_metadata.resolvedCategories"]');
+        await expect(resolvedRow).toBeVisible();
+
+        const expectedTermKeys = (def.expected as any).resolvedTermKeys as string[];
+        const expectedDisplayName = (def.expected as any).resolvedDisplayName as string;
+        const hierarchyPath = (def.expected as any).hierarchyPath as Array<{ key: string; displayName: string }>;
+
+        // Verify resolved category key rendered in the Key: line
+        for (const termKey of expectedTermKeys) {
+          await expect(
+            resolvedRow.getByText(`Key: ${termKey}`),
+            `edit: resolvedCategories should show Key: ${termKey}`,
+          ).toBeVisible();
+        }
+
+        // Verify displayName rendered as bold heading
+        await expect(
+          resolvedRow.locator('div', { hasText: expectedDisplayName }).first(),
+          `edit: resolvedCategories should show displayName "${expectedDisplayName}"`,
+        ).toBeVisible();
+
+        // Verify path depth
+        await expect(
+          resolvedRow.getByText(`Path (${hierarchyPath.length})`),
+          `edit: path depth should be ${hierarchyPath.length}`,
+        ).toBeVisible();
+
+        // Verify each path node rendered as ordered list items
+        const pathItems = resolvedRow.locator('ol ol > li');
+        await expect(pathItems).toHaveCount(hierarchyPath.length);
+
+        for (let i = 0; i < hierarchyPath.length; i++) {
+          const item = pathItems.nth(i);
+          await expect(item).toContainText(hierarchyPath[i].displayName);
+          await expect(item).toContainText(`(${hierarchyPath[i].key})`);
+        }
+      }
 
       expect(collector.errors, 'No critical errors in edit mode').toHaveLength(0);
       collector.detach(page);
