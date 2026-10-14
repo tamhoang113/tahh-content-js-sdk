@@ -348,7 +348,8 @@ export const AutoJsonAllFields = contentType({
 });
 
 /**
- * Case 10: contentReference property — allowedTypes
+ * Case 10: contentReference property — allowedTypes + contentType
+ * CMS-56511: contentType is ONLY valid on contentReference (not on content/contentArea)
  */
 export const AutoContentRefAllFields = contentType({
   key: 'AutoContentRefAllFields',
@@ -377,6 +378,100 @@ export const AutoContentRefAllFields = contentType({
       displayMode: 'hidden',
       allowedTypes: ['_page'],
     },
+
+    refWithContentType: {
+      type: 'contentReference',
+      displayName: 'Ref with ContentType (CMS-56511)',
+      contentType: 'AutoBooleanAllFields',
+    },
+
+    // CMS-54832: unconstrained + empty cases are tested as negative validation
+    // in cms-56511-contentarea-constraints.test.ts (CLI rejects before push)
+  },
+});
+
+/**
+ * Case 11: ContentArea (array of content items) — allowedTypes, restrictedTypes
+ * CMS-56511: content items must use allowedTypes/restrictedTypes, NOT contentType
+ */
+export const AutoContentAreaAllFields = contentType({
+  key: 'AutoContentAreaAllFields',
+  displayName: 'Auto ContentArea All Fields',
+  baseType: '_component',
+  properties: {
+    simpleContentArea: {
+      type: 'array',
+      items: { type: 'content', allowedTypes: ['_page'] },
+    },
+
+    contentAreaWithAllowed: {
+      type: 'array',
+      displayName: 'ContentArea with AllowedTypes',
+      description: 'A contentArea with allowedTypes constraint',
+      isRequired: false,
+      isLocalized: false,
+      group: 'Content',
+      sortOrder: 115,
+      displayMode: 'available',
+      items: { type: 'content', allowedTypes: ['_page', '_component'] },
+      maxItems: 20,
+    },
+
+    contentAreaWithRestricted: {
+      type: 'array',
+      displayName: 'ContentArea with RestrictedTypes',
+      items: { type: 'content', restrictedTypes: ['_folder', '_media'] },
+    },
+
+    hiddenContentArea: {
+      type: 'array',
+      displayMode: 'hidden',
+      items: { type: 'content', allowedTypes: ['_page'] },
+    },
+
+    // CMS-54832: empty allowedTypes tested in cms-56511-contentarea-constraints.test.ts
+  },
+});
+
+/**
+ * Case 13: ContentAreaItem (type: 'content') — single content item reference
+ * CMS-56511: must use allowedTypes/restrictedTypes, NOT contentType
+ */
+export const AutoContentItemAllFields = contentType({
+  key: 'AutoContentItemAllFields',
+  displayName: 'Auto ContentAreaItem All Fields',
+  baseType: '_component',
+  properties: {
+    simpleContent: {
+      type: 'content',
+      allowedTypes: ['_page'],
+    },
+
+    fullContent: {
+      type: 'content',
+      displayName: 'Full ContentAreaItem',
+      description: 'A content item with every field set',
+      isRequired: false,
+      isLocalized: false,
+      group: 'Content',
+      sortOrder: 130,
+      displayMode: 'available',
+      allowedTypes: ['_page', '_component'],
+    },
+
+    contentWithRestricted: {
+      type: 'content',
+      displayName: 'ContentAreaItem with RestrictedTypes',
+      restrictedTypes: ['_folder', '_media'],
+    },
+
+    hiddenContent: {
+      type: 'content',
+      displayMode: 'hidden',
+      allowedTypes: ['_page'],
+    },
+
+    // CMS-54832: unconstrained + empty cases tested in cms-56511-contentarea-constraints.test.ts
   },
 });
 
@@ -414,40 +509,7 @@ export const AutoComponentAllFields = contentType({
 });
 
 /**
- * Case 13: content property — allowedTypes
- */
-export const AutoContentAllFields = contentType({
-  key: 'AutoContentAllFields',
-  displayName: 'Auto Content All Fields',
-  baseType: '_component',
-  properties: {
-    simpleContent: {
-      type: 'content',
-      allowedTypes: ['_page'],
-    },
-
-    fullContent: {
-      type: 'content',
-      displayName: 'Full Content',
-      description: 'A content property with every field set',
-      isRequired: false,
-      isLocalized: false,
-      group: 'Content',
-      sortOrder: 130,
-      displayMode: 'available',
-      allowedTypes: ['_page', '_component'],
-    },
-
-    hiddenContent: {
-      type: 'content',
-      displayMode: 'hidden',
-      allowedTypes: ['_page'],
-    },
-  },
-});
-
-/**
- * Case 14: array property — items with type, minItems/maxItems
+ * Case 14: array property — all item types, minItems/maxItems
  */
 export const AutoArrayAllFields = contentType({
   key: 'AutoArrayAllFields',
@@ -459,9 +521,9 @@ export const AutoArrayAllFields = contentType({
       items: { type: 'string' },
     },
 
-    fullArray: {
+    stringArray: {
       type: 'array',
-      displayName: 'Full Array',
+      displayName: 'String Array',
       description: 'An array with every field set',
       isRequired: true,
       isLocalized: false,
@@ -477,6 +539,54 @@ export const AutoArrayAllFields = contentType({
       type: 'array',
       displayName: 'Integer Array',
       items: { type: 'integer' },
+    },
+
+    floatArray: {
+      type: 'array',
+      displayName: 'Float Array',
+      items: { type: 'float' },
+    },
+
+    boolArray: {
+      type: 'array',
+      displayName: 'Boolean Array',
+      items: { type: 'boolean' },
+    },
+
+    urlArray: {
+      type: 'array',
+      displayName: 'Url Array',
+      items: { type: 'url' },
+    },
+
+    linkArray: {
+      type: 'array',
+      displayName: 'Link Array',
+      items: { type: 'link' },
+    },
+
+    dateTimeArray: {
+      type: 'array',
+      displayName: 'DateTime Array',
+      items: { type: 'dateTime' },
+    },
+
+    componentArray: {
+      type: 'array',
+      displayName: 'Component Array',
+      items: { type: 'component', contentType: AutoBooleanAllFields },
+    },
+
+    contentArray: {
+      type: 'array',
+      displayName: 'Content Array',
+      items: { type: 'content', allowedTypes: ['_page'] },
+    },
+
+    contentRefArray: {
+      type: 'array',
+      displayName: 'ContentReference Array',
+      items: { type: 'contentReference', allowedTypes: ['_image'] },
     },
 
     hiddenArray: {
@@ -681,3 +791,4 @@ export const AutoComponentBothBehaviors = contentType({
     },
   },
 });
+

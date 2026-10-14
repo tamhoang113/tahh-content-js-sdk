@@ -573,8 +573,9 @@ describe('AutoContentRefAllFields — contentReference property with all fields'
     expect(prop.displayName).toBe('Full ContentReference');
     expect(prop.isRequired).toBe(true);
 
-    const allowed = prop.allowedTypes ?? prop.contentType ?? [];
-    expect(allowed.length).toBeGreaterThanOrEqual(1);
+    const allowed = prop.allowedTypes ?? [];
+    expect(allowed).toContain('_page');
+    expect(allowed).toContain('_image');
   });
 
   test('hiddenRef — displayMode hidden', () => {
@@ -582,6 +583,19 @@ describe('AutoContentRefAllFields — contentReference property with all fields'
     expect(prop, 'hiddenRef not found').toBeTruthy();
     expect(prop.displayMode ?? prop.editorSettings?.displayMode).toMatch(/hidden/i);
   });
+
+  test('refWithContentType — CMS-56511: contentType still valid on contentReference', () => {
+    const prop = findProperty(ct, 'refWithContentType');
+    expect(prop, 'refWithContentType not found').toBeTruthy();
+    expect(prop.type).toBe('contentReference');
+    expect(prop.displayName).toBe('Ref with ContentType (CMS-56511)');
+
+    const hasConstraint =
+      prop.contentType ||
+      (Array.isArray(prop.allowedTypes) && prop.allowedTypes.length > 0);
+    expect(hasConstraint, 'refWithContentType should have type constraint').toBeTruthy();
+  });
+
 });
 
 // ─── Case 12: AutoComponentAllFields ─────────────────────────────────────────
@@ -620,23 +634,91 @@ describe('AutoComponentAllFields — component property with all fields', () => 
   });
 });
 
-// ─── Case 13: AutoContentAllFields ───────────────────────────────────────────
+// ─── Case 11: AutoContentAreaAllFields ──────────────────────────────────────
 
-describe('AutoContentAllFields — content property with all fields', () => {
+describe('AutoContentAreaAllFields — ContentArea (array of content items)', () => {
   let ct: any;
 
   beforeAll(async () => {
-    ct = await getContentType(config, 'AutoContentAllFields');
-    expect(ct, 'AutoContentAllFields not found on CMS after push').toBeTruthy();
+    ct = await getContentType(config, 'AutoContentAreaAllFields');
+    expect(ct, 'AutoContentAreaAllFields not found on CMS after push').toBeTruthy();
   });
 
   test('content type metadata', () => {
-    expect(ct.key).toBe('AutoContentAllFields');
-    expect(ct.displayName).toBe('Auto Content All Fields');
+    expect(ct.key).toBe('AutoContentAreaAllFields');
+    expect(ct.displayName).toBe('Auto ContentArea All Fields');
     expect(ct.baseType).toBe('_component');
   });
 
-  test('simpleContent — minimal content', () => {
+  test('simpleContentArea — minimal contentArea', () => {
+    const prop = findProperty(ct, 'simpleContentArea');
+    expect(prop, 'simpleContentArea not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    expect(items.type).toBe('content');
+  });
+
+  test('contentAreaWithAllowed — all fields + items with allowedTypes', () => {
+    const prop = findProperty(ct, 'contentAreaWithAllowed');
+    expect(prop, 'contentAreaWithAllowed not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+    expect(prop.displayName).toBe('ContentArea with AllowedTypes');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    expect(items.type).toBe('content');
+
+    const allowed = items.allowedTypes ?? [];
+    expect(allowed).toContain('_page');
+    expect(allowed).toContain('_component');
+    expect(items.contentType, 'content items should NOT have contentType (CMS-56511)').toBeFalsy();
+
+    const validation = prop.validation ?? prop;
+    expect(validation.maxItems ?? prop.maxItems).toBe(20);
+  });
+
+  test('contentAreaWithRestricted — items with restrictedTypes (CMS-56511)', () => {
+    const prop = findProperty(ct, 'contentAreaWithRestricted');
+    expect(prop, 'contentAreaWithRestricted not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    expect(items.type).toBe('content');
+
+    const restricted = items.restrictedTypes ?? [];
+    expect(restricted).toContain('_folder');
+    expect(restricted).toContain('_media');
+    expect(items.contentType, 'content items should NOT have contentType (CMS-56511)').toBeFalsy();
+  });
+
+  test('hiddenContentArea — displayMode hidden', () => {
+    const prop = findProperty(ct, 'hiddenContentArea');
+    expect(prop, 'hiddenContentArea not found').toBeTruthy();
+    expect(prop.displayMode ?? prop.editorSettings?.displayMode).toMatch(/hidden/i);
+  });
+
+});
+
+// ─── Case 13: AutoContentItemAllFields ──────────────────────────────────────
+
+describe('AutoContentItemAllFields — ContentAreaItem (type: content)', () => {
+  let ct: any;
+
+  beforeAll(async () => {
+    ct = await getContentType(config, 'AutoContentItemAllFields');
+    expect(ct, 'AutoContentItemAllFields not found on CMS after push').toBeTruthy();
+  });
+
+  test('content type metadata', () => {
+    expect(ct.key).toBe('AutoContentItemAllFields');
+    expect(ct.displayName).toBe('Auto ContentAreaItem All Fields');
+    expect(ct.baseType).toBe('_component');
+  });
+
+  test('simpleContent — minimal content item with allowedTypes', () => {
     const prop = findProperty(ct, 'simpleContent');
     expect(prop, 'simpleContent not found').toBeTruthy();
     expect(prop.type).toBe('content');
@@ -646,10 +728,26 @@ describe('AutoContentAllFields — content property with all fields', () => {
     const prop = findProperty(ct, 'fullContent');
     expect(prop, 'fullContent not found').toBeTruthy();
     expect(prop.type).toBe('content');
-    expect(prop.displayName).toBe('Full Content');
+    expect(prop.displayName).toBe('Full ContentAreaItem');
+    expect(prop.isRequired).toBe(false);
+    expect(prop.isLocalized).toBe(false);
 
-    const allowed = prop.allowedTypes ?? prop.contentType ?? [];
-    expect(allowed.length).toBeGreaterThanOrEqual(1);
+    const allowed = prop.allowedTypes ?? [];
+    expect(allowed).toContain('_page');
+    expect(allowed).toContain('_component');
+    expect(prop.contentType, 'content item should NOT have contentType (CMS-56511)').toBeFalsy();
+  });
+
+  test('contentWithRestricted — restrictedTypes (CMS-56511)', () => {
+    const prop = findProperty(ct, 'contentWithRestricted');
+    expect(prop, 'contentWithRestricted not found').toBeTruthy();
+    expect(prop.type).toBe('content');
+    expect(prop.displayName).toBe('ContentAreaItem with RestrictedTypes');
+
+    const restricted = prop.restrictedTypes ?? [];
+    expect(restricted).toContain('_folder');
+    expect(restricted).toContain('_media');
+    expect(prop.contentType, 'content item should NOT have contentType (CMS-56511)').toBeFalsy();
   });
 
   test('hiddenContent — displayMode hidden', () => {
@@ -657,6 +755,7 @@ describe('AutoContentAllFields — content property with all fields', () => {
     expect(prop, 'hiddenContent not found').toBeTruthy();
     expect(prop.displayMode ?? prop.editorSettings?.displayMode).toMatch(/hidden/i);
   });
+
 });
 
 // ─── Case 14: AutoArrayAllFields ─────────────────────────────────────────────
@@ -686,11 +785,11 @@ describe('AutoArrayAllFields — array property with all fields', () => {
     expect(itemType).toBe('string');
   });
 
-  test('fullArray — all fields + minItems/maxItems', () => {
-    const prop = findProperty(ct, 'fullArray');
-    expect(prop, 'fullArray not found').toBeTruthy();
+  test('stringArray — all fields + minItems/maxItems', () => {
+    const prop = findProperty(ct, 'stringArray');
+    expect(prop, 'stringArray not found').toBeTruthy();
     expect(prop.type).toBe('array');
-    expect(prop.displayName).toBe('Full Array');
+    expect(prop.displayName).toBe('String Array');
     expect(prop.isRequired).toBe(true);
 
     const validation = prop.validation ?? prop;
@@ -709,9 +808,96 @@ describe('AutoArrayAllFields — array property with all fields', () => {
     expect(itemType).toBe('integer');
   });
 
+  test('floatArray — array of floats', () => {
+    const prop = findProperty(ct, 'floatArray');
+    expect(prop, 'floatArray not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    const itemType = items.type ?? items;
+    expect(itemType).toBe('float');
+  });
+
+  test('boolArray — array of booleans', () => {
+    const prop = findProperty(ct, 'boolArray');
+    expect(prop, 'boolArray not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    const itemType = items.type ?? items;
+    expect(itemType).toBe('boolean');
+  });
+
+  test('urlArray — array of urls', () => {
+    const prop = findProperty(ct, 'urlArray');
+    expect(prop, 'urlArray not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    const itemType = items.type ?? items;
+    expect(itemType).toBe('url');
+  });
+
+  test('linkArray — array of links', () => {
+    const prop = findProperty(ct, 'linkArray');
+    expect(prop, 'linkArray not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+  });
+
+  test('dateTimeArray — array of dateTimes', () => {
+    const prop = findProperty(ct, 'dateTimeArray');
+    expect(prop, 'dateTimeArray not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    const itemType = items.type ?? items;
+    expect(itemType).toBe('dateTime');
+  });
+
+  test('componentArray — array of components', () => {
+    const prop = findProperty(ct, 'componentArray');
+    expect(prop, 'componentArray not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    const itemType = items.type ?? items;
+    expect(itemType).toBe('component');
+  });
+
+  test('contentArray — array of content items', () => {
+    const prop = findProperty(ct, 'contentArray');
+    expect(prop, 'contentArray not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    expect(items.type).toBe('content');
+  });
+
+  test('contentRefArray — array of contentReferences', () => {
+    const prop = findProperty(ct, 'contentRefArray');
+    expect(prop, 'contentRefArray not found').toBeTruthy();
+    expect(prop.type).toBe('array');
+
+    const items = prop.items ?? prop.item;
+    expect(items).toBeTruthy();
+    expect(items.type).toBe('contentReference');
+  });
+
   test('hiddenArray — displayMode hidden', () => {
     const prop = findProperty(ct, 'hiddenArray');
     expect(prop, 'hiddenArray not found').toBeTruthy();
     expect(prop.displayMode ?? prop.editorSettings?.displayMode).toMatch(/hidden/i);
   });
 });
+
+// ─── CMS-56511: contentArea constraint validation ─────────────────────────────
+// Bug: content (contentArea) accepted `contentType`, bypassing allowedTypes/restrictedTypes.
+// After fix: contentType is only valid on contentReference, not on content.
+
+
