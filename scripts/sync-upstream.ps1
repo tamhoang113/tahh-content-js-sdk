@@ -6,7 +6,7 @@ param(
     [string]$LockfilePath = 'pnpm-lock.yaml',
     [string[]]$PreserveOursPaths = @('.github/workflows/vercel-prod.yaml'),
     [string[]]$RequiredPaths = @('_qa/helpers/sdk-api.ts', 'samples/nextjs-template/src/qa/_registry.ts'),
-    [switch]$RegenerateLockfile = $true,
+    [switch]$RegenerateLockfile = $false,
     [switch]$Push
 )
 
@@ -69,8 +69,8 @@ function Resolve-KnownConflicts {
 
     foreach ($path in $ConflictedPaths) {
         if ($path -eq $LockfilePath) {
-            Write-Host "Taking current branch version of $LockfilePath before regeneration"
-            Invoke-Git checkout --ours -- $LockfilePath | Out-Null
+            Write-Host "Taking upstream version of $LockfilePath (fork adds no new dependencies)"
+            Invoke-Git checkout --theirs -- $LockfilePath | Out-Null
             Invoke-Git add -- $LockfilePath | Out-Null
             continue
         }
