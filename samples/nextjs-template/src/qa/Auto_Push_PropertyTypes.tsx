@@ -19,7 +19,7 @@ export const AutoBaseContract = contract({
 export const AutoStringAllFields = contentType({
   key: 'AutoStringAllFields',
   displayName: 'Auto String All Fields',
-  baseType: '_component',
+  baseType: '_page',
   extends: [AutoBaseContract],
   properties: {
     simpleString: {
@@ -38,7 +38,7 @@ export const AutoStringAllFields = contentType({
       displayMode: 'available',
       minLength: 1,
       maxLength: 500,
-      pattern: '^[A-Za-z0-9 ]+$',
+      pattern: '^[A-Za-z0-9 \\-_]+$',
     },
 
     enumString: {
@@ -74,7 +74,7 @@ export const AutoStringAllFields = contentType({
 export const AutoBooleanAllFields = contentType({
   key: 'AutoBooleanAllFields',
   displayName: 'Auto Boolean All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleBool: {
       type: 'boolean',
@@ -105,7 +105,7 @@ export const AutoBooleanAllFields = contentType({
 export const AutoIntegerAllFields = contentType({
   key: 'AutoIntegerAllFields',
   displayName: 'Auto Integer All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleInt: {
       type: 'integer',
@@ -148,7 +148,7 @@ export const AutoIntegerAllFields = contentType({
 export const AutoFloatAllFields = contentType({
   key: 'AutoFloatAllFields',
   displayName: 'Auto Float All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleFloat: {
       type: 'float',
@@ -191,7 +191,7 @@ export const AutoFloatAllFields = contentType({
 export const AutoDateTimeAllFields = contentType({
   key: 'AutoDateTimeAllFields',
   displayName: 'Auto DateTime All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleDateTime: {
       type: 'dateTime',
@@ -224,7 +224,7 @@ export const AutoDateTimeAllFields = contentType({
 export const AutoRichTextAllFields = contentType({
   key: 'AutoRichTextAllFields',
   displayName: 'Auto RichText All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleRichText: {
       type: 'richText',
@@ -262,7 +262,7 @@ export const AutoRichTextAllFields = contentType({
 export const AutoUrlAllFields = contentType({
   key: 'AutoUrlAllFields',
   displayName: 'Auto Url All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleUrl: {
       type: 'url',
@@ -292,7 +292,7 @@ export const AutoUrlAllFields = contentType({
 export const AutoLinkAllFields = contentType({
   key: 'AutoLinkAllFields',
   displayName: 'Auto Link All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleLink: {
       type: 'link',
@@ -322,7 +322,7 @@ export const AutoLinkAllFields = contentType({
 export const AutoJsonAllFields = contentType({
   key: 'AutoJsonAllFields',
   displayName: 'Auto Json All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleJson: {
       type: 'json',
@@ -354,7 +354,7 @@ export const AutoJsonAllFields = contentType({
 export const AutoContentRefAllFields = contentType({
   key: 'AutoContentRefAllFields',
   displayName: 'Auto ContentReference All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleRef: {
       type: 'contentReference',
@@ -397,7 +397,7 @@ export const AutoContentRefAllFields = contentType({
 export const AutoContentAreaAllFields = contentType({
   key: 'AutoContentAreaAllFields',
   displayName: 'Auto ContentArea All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleContentArea: {
       type: 'array',
@@ -440,7 +440,7 @@ export const AutoContentAreaAllFields = contentType({
 export const AutoContentItemAllFields = contentType({
   key: 'AutoContentItemAllFields',
   displayName: 'Auto ContentAreaItem All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleContent: {
       type: 'content',
@@ -476,6 +476,56 @@ export const AutoContentItemAllFields = contentType({
 });
 
 /**
+ * Case 19: _component with compositionBehaviors
+ * - elementEnabled: can be used as element in Visual Builder
+ * - sectionEnabled: can be used as section in Visual Builder
+ * Declared before Case 12 because AutoComponentAllFields references AutoComponentElementEnabled.
+ */
+export const AutoComponentElementEnabled = contentType({
+  key: 'AutoComponentElementEnabled',
+  displayName: 'Auto Component Element Enabled',
+  baseType: '_component',
+  compositionBehaviors: ['elementEnabled'],
+  properties: {
+    heading: {
+      type: 'string',
+      displayName: 'Heading',
+      isRequired: true,
+    },
+    body: {
+      type: 'richText',
+      displayName: 'Body',
+    },
+  },
+});
+
+export const AutoComponentSectionEnabled = contentType({
+  key: 'AutoComponentSectionEnabled',
+  displayName: 'Auto Component Section Enabled',
+  baseType: '_component',
+  compositionBehaviors: ['sectionEnabled'],
+  properties: {
+    backgroundColor: {
+      type: 'string',
+      displayName: 'Background Color',
+    },
+  },
+});
+
+export const AutoComponentBothBehaviors = contentType({
+  key: 'AutoComponentBothBehaviors',
+  displayName: 'Auto Component Both Behaviors',
+  baseType: '_component',
+  compositionBehaviors: ['elementEnabled', 'sectionEnabled'],
+  properties: {
+    label: {
+      type: 'string',
+      displayName: 'Label',
+    },
+  },
+});
+
+/**
  * Case 12: component property
  */
 export const AutoComponentAllFields = contentType({
@@ -485,12 +535,12 @@ export const AutoComponentAllFields = contentType({
   properties: {
     simpleComponent: {
       type: 'component',
-      contentType: AutoBooleanAllFields,
+      contentType: AutoComponentElementEnabled,
     },
 
     fullComponent: {
       type: 'component',
-      contentType: AutoBooleanAllFields,
+      contentType: AutoComponentElementEnabled,
       displayName: 'Full Component',
       description: 'A component property with fields set',
       isRequired: false,
@@ -502,7 +552,7 @@ export const AutoComponentAllFields = contentType({
 
     hiddenComponent: {
       type: 'component',
-      contentType: AutoBooleanAllFields,
+      contentType: AutoComponentElementEnabled,
       displayMode: 'hidden',
     },
   },
@@ -514,7 +564,7 @@ export const AutoComponentAllFields = contentType({
 export const AutoArrayAllFields = contentType({
   key: 'AutoArrayAllFields',
   displayName: 'Auto Array All Fields',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     simpleArray: {
       type: 'array',
@@ -574,7 +624,7 @@ export const AutoArrayAllFields = contentType({
     componentArray: {
       type: 'array',
       displayName: 'Component Array',
-      items: { type: 'component', contentType: AutoBooleanAllFields },
+      items: { type: 'component', contentType: AutoComponentElementEnabled },
     },
 
     contentArray: {
@@ -608,7 +658,7 @@ export const AutoArrayAllFields = contentType({
 export const AutoArrayItemValidation = contentType({
   key: 'AutoArrayItemValidation',
   displayName: 'Auto Array Item Validation',
-  baseType: '_component',
+  baseType: '_page',
   properties: {
     stringArrayWithValidation: {
       type: 'array',
@@ -743,52 +793,5 @@ export const AutoFolderBaseType = contentType({
   },
 });
 
-/**
- * Case 19: _component with compositionBehaviors
- * - elementEnabled: can be used as element in Visual Builder
- * - sectionEnabled: can be used as section in Visual Builder
- */
-export const AutoComponentElementEnabled = contentType({
-  key: 'AutoComponentElementEnabled',
-  displayName: 'Auto Component Element Enabled',
-  baseType: '_component',
-  compositionBehaviors: ['elementEnabled'],
-  properties: {
-    heading: {
-      type: 'string',
-      displayName: 'Heading',
-      isRequired: true,
-    },
-    body: {
-      type: 'richText',
-      displayName: 'Body',
-    },
-  },
-});
-
-export const AutoComponentSectionEnabled = contentType({
-  key: 'AutoComponentSectionEnabled',
-  displayName: 'Auto Component Section Enabled',
-  baseType: '_component',
-  compositionBehaviors: ['sectionEnabled'],
-  properties: {
-    backgroundColor: {
-      type: 'string',
-      displayName: 'Background Color',
-    },
-  },
-});
-
-export const AutoComponentBothBehaviors = contentType({
-  key: 'AutoComponentBothBehaviors',
-  displayName: 'Auto Component Both Behaviors',
-  baseType: '_component',
-  compositionBehaviors: ['elementEnabled', 'sectionEnabled'],
-  properties: {
-    label: {
-      type: 'string',
-      displayName: 'Label',
-    },
-  },
-});
+// Case 19 declarations moved above Case 12 (AutoComponentAllFields references AutoComponentElementEnabled)
 

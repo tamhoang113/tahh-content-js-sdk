@@ -80,7 +80,7 @@ describe('AutoStringAllFields — string property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoStringAllFields');
     expect(ct.displayName).toBe('Auto String All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('extends AutoBaseContract', () => {
@@ -105,7 +105,7 @@ describe('AutoStringAllFields — string property with all fields', () => {
     const validation = prop.validation ?? prop;
     expect(validation.minLength ?? prop.minLength).toBe(1);
     expect(validation.maxLength ?? prop.maxLength).toBe(500);
-    expect(validation.pattern ?? prop.pattern).toBe('^[A-Za-z0-9 ]+$');
+    expect(validation.pattern ?? prop.pattern).toBe('^[A-Za-z0-9 \\-_]+$');
   });
 
   test('enumString — string with enum choices', () => {
@@ -159,7 +159,7 @@ describe('AutoBooleanAllFields — boolean property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoBooleanAllFields');
     expect(ct.displayName).toBe('Auto Boolean All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleBool — minimal boolean', () => {
@@ -198,7 +198,7 @@ describe('AutoIntegerAllFields — integer property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoIntegerAllFields');
     expect(ct.displayName).toBe('Auto Integer All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleInt — minimal integer', () => {
@@ -254,7 +254,7 @@ describe('AutoFloatAllFields — float property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoFloatAllFields');
     expect(ct.displayName).toBe('Auto Float All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleFloat — minimal float', () => {
@@ -309,7 +309,7 @@ describe('AutoDateTimeAllFields — dateTime property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoDateTimeAllFields');
     expect(ct.displayName).toBe('Auto DateTime All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleDateTime — minimal dateTime', () => {
@@ -355,7 +355,7 @@ describe('AutoRichTextAllFields — richText property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoRichTextAllFields');
     expect(ct.displayName).toBe('Auto RichText All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleRichText — minimal richText', () => {
@@ -404,7 +404,7 @@ describe('AutoUrlAllFields — url property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoUrlAllFields');
     expect(ct.displayName).toBe('Auto Url All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleUrl — minimal url', () => {
@@ -442,7 +442,7 @@ describe('AutoLinkAllFields — link property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoLinkAllFields');
     expect(ct.displayName).toBe('Auto Link All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleLink — minimal link', () => {
@@ -480,7 +480,7 @@ describe('AutoJsonAllFields — json property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoJsonAllFields');
     expect(ct.displayName).toBe('Auto Json All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleJson — minimal json', () => {
@@ -557,7 +557,7 @@ describe('AutoContentRefAllFields — contentReference property with all fields'
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoContentRefAllFields');
     expect(ct.displayName).toBe('Auto ContentReference All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleRef — minimal contentReference', () => {
@@ -647,7 +647,7 @@ describe('AutoContentAreaAllFields — ContentArea (array of content items)', ()
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoContentAreaAllFields');
     expect(ct.displayName).toBe('Auto ContentArea All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleContentArea — minimal contentArea', () => {
@@ -715,7 +715,7 @@ describe('AutoContentItemAllFields — ContentAreaItem (type: content)', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoContentItemAllFields');
     expect(ct.displayName).toBe('Auto ContentAreaItem All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleContent — minimal content item with allowedTypes', () => {
@@ -771,7 +771,7 @@ describe('AutoArrayAllFields — array property with all fields', () => {
   test('content type metadata', () => {
     expect(ct.key).toBe('AutoArrayAllFields');
     expect(ct.displayName).toBe('Auto Array All Fields');
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
   });
 
   test('simpleArray — minimal array of strings', () => {

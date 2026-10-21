@@ -90,7 +90,8 @@ export async function POST(req: NextRequest) {
       case 'getContentByPath': {
         if (!params.path) return NextResponse.json({ error: 'path is required' }, { status: 400 });
         const resolveTaxonomy = params.resolveTaxonomy === 'true';
-        result = await client.getContentByPath(params.path, { ...queryOpts, host, resolveTaxonomy });
+        const variation = params.variation ? (typeof params.variation === 'string' ? JSON.parse(params.variation) : params.variation) : undefined;
+        result = await client.getContentByPath(params.path, { ...queryOpts, host, resolveTaxonomy, variation });
         break;
       }
 

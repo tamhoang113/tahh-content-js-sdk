@@ -129,7 +129,7 @@ describe('pull --json round-trip', () => {
   test('AutoStringAllFields — key metadata', () => {
     const ct = getType(manifest, 'AutoStringAllFields');
     expect(ct, 'AutoStringAllFields not found').toBeTruthy();
-    expect(ct.baseType).toBe('_component');
+    expect(ct.baseType).toBe('_page');
     expect(ct.contracts).toContain('AutoBaseContract');
   });
 
@@ -146,7 +146,7 @@ describe('pull --json round-trip', () => {
     expect(prop.indexingType).toBe('searchable');
     expect(prop.minLength).toBe(1);
     expect(prop.maxLength).toBe(500);
-    expect(prop.pattern).toBe('^[A-Za-z0-9 ]+$');
+    expect(prop.pattern).toBe('^[A-Za-z0-9 \\-_]+$');
   });
 
   test('AutoStringAllFields — simpleString only has type set (rest are defaults)', () => {

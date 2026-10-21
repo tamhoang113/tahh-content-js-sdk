@@ -58,6 +58,7 @@ import {
   AutoComponentBothBehaviors,
 } from '@/qa/Auto_Push_PropertyTypes';
 import { AutoNoContent } from '@/qa/Auto_PushOnly_Verify';
+import AutoStringAllFieldsComponent from '@/qa/Auto_StringAllFields_Component';
 
 /** Spread into initContentTypeRegistry([...appTypes, ...QA_CONTENT_TYPES]) */
 export const QA_CONTENT_TYPES = [
@@ -116,4 +117,5 @@ export const QA_RESOLVERS = {
   CMS54844HeroSection: CMS54844HeroSectionComponent,
   CMS54844HeroElement: CMS54844HeroElementComponent,
   CMS56217TaxonomyPage: CMS56217TaxonomyPageComponent,
+  AutoStringAllFields: AutoStringAllFieldsComponent,
 };
