@@ -9,6 +9,7 @@
     "test:cli": "vitest run tests/cli/ && node scripts/generate-report.mjs cli",
     "test:sdk": "vitest run tests/sdk/ && node scripts/generate-report.mjs sdk",
     "seed:cms-56217": "vitest run --config vitest.seed.config.ts tests/seed/cms-56217.seed.ts",
+    "seed:cms-56719": "vitest run --config vitest.seed.config.ts tests/seed/cms-56719.seed.ts",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test tests/e2e/smoke/",
     "test:e2e:smoke:stride": "playwright test tests/e2e/smoke/stride.spec.ts",

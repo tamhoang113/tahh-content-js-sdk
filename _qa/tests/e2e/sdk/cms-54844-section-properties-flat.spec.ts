@@ -37,6 +37,8 @@
  *   collide with label text.
  */
 
+//Note: This test cover CMS-53436 and CMS-54058
+
 import { test, expect } from '@playwright/test';
 import {
   loadSiteConfig,
