@@ -6,6 +6,8 @@ export interface SiteConfig {
   cmsApiUrl: string;
   graphGateway: string;
   graphKey: string;
+  graphAppKey: string;
+  graphSecret: string;
   baseUrl: string;
   cmsUser: string;
   cmsPass: string;

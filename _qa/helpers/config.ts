@@ -48,6 +48,8 @@ export function loadSiteConfig(templateOrPath: string): SiteConfig {
     cmsApiUrl: (env.OPTIMIZELY_CMS_API_URL ?? 'https://api.cms.optimizely.com').replace(/\/$/, ''),
     graphGateway: (env.OPTIMIZELY_GRAPH_GATEWAY ?? '').replace(/\/$/, ''),
     graphKey: env.OPTIMIZELY_GRAPH_SINGLE_KEY ?? '',
+    graphAppKey: env.OPTIMIZELY_GRAPH_APP_KEY ?? '',
+    graphSecret: env.OPTIMIZELY_GRAPH_SECRET ?? '',
     baseUrl: env.APPLICATION_HOST ?? env.BASE_URL ?? 'https://localhost:3000',
     cmsUser: env.CMS_SMOKE_USER ?? process.env.CMS_SMOKE_USER ?? 'cms.auto1+admin@optimizely.com',
     cmsPass: env.CMS_SMOKE_PASS ?? process.env.CMS_SMOKE_PASS ?? '',

@@ -34,5 +34,12 @@ export async function loginToCms(page: Page, config: SiteConfig): Promise<void> 
   await page.getByRole('button', { name: /Verify|Sign in/i }).click();
 
   await page.waitForURL(`${config.cmsUrl}/ui/cms**`, { timeout: 15_000 });
-  await page.waitForTimeout(1500);
+
+  // Wait for the CMS SPA to finish its initial default navigation. After the
+  // OAuth redirect lands on /ui/cms, the SPA is still bootstrapping and will
+  // shortly push #context=epi.cms.contentdata:///6 (or similar default content)
+  // to the URL. Callers that immediately call openContentById() would have their
+  // navigation overwritten by this. Waiting for the hash to appear means the SPA
+  // has settled and is ready to accept a new hash navigation.
+  await page.waitForURL(/ui\/cms#context=/, { timeout: 15_000 }).catch(() => {});
 }

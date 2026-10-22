@@ -66,21 +66,29 @@ async function grantLocalNetworkAccess(page: Page, cmsUrl: string): Promise<void
  * root, content ID 6) instead of the requested one. Always: loginToCms()
  * first (plain /ui/cms URL, no hash), then openContentById() second.
  */
-export async function openContentById(page: Page, config: SiteConfig, contentId: number | string): Promise<void> {
-  // Pre-authorize Local Network Access for the CMS origin so the sitePreview
-  // iframe can talk to localhost:3001 without triggering Chrome's native
-  // permission prompt (which automated contexts have no way to dismiss).
-  await grantLocalNetworkAccess(page, config.cmsUrl);
-
+/**
+ * Open a CMS content item by ID in a NEW browser tab (same context = same auth
+ * cookies) and return the new Page. Opening in a new tab avoids the race where
+ * the SPA on the current page is mid-initialization and overwrites the hash
+ * navigation triggered by a same-page goto(). A fresh tab boots the SPA directly
+ * with the content hash already set, so the correct content always loads.
+ *
+ * Callers are responsible for closing the returned page when done.
+ *
+ * IMPORTANT: call loginToCms() on the original page first so auth cookies are
+ * present in the browser context before this tab is opened.
+ */
+export async function openContentById(page: Page, config: SiteConfig, contentId: number | string): Promise<Page> {
   const id = typeof contentId === 'string' ? toDashedGuid(contentId) : contentId;
   const target = `${config.cmsUrl}/ui/cms#context=epi.cms.contentdata:///${id}`;
-  if (page.url() !== target) {
-    await page.evaluate((url) => { window.location.href = url; }, target);
-  }
-  // Wait for the CMS edit shell to finish its initial load. Precise waiting
-  // for the preview iframe itself (name="sitePreview") is handled separately
-  // by waitForPreviewFrame/getPreviewFrameText — callers that need preview
-  // content should use those instead of relying on a fixed sleep here.
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-  await page.waitForTimeout(1500);
+
+  const newTab = await page.context().newPage();
+
+  // Pre-authorize Local Network Access on the new tab so the sitePreview iframe
+  // (localhost:3001) isn't blocked behind Chrome's native permission prompt.
+  await grantLocalNetworkAccess(newTab, config.cmsUrl);
+
+  await newTab.goto(target, { waitUntil: 'networkidle', timeout: 20_000 }).catch(() => {});
+
+  return newTab;
 }

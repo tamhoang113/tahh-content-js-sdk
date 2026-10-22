@@ -32,7 +32,6 @@ import {
   loginToCms,
   openContentById,
   createErrorCollector,
-  waitForPreviewFrame,
   ensureStoryFixtures,
   resolveTestContainer,
 } from '../../../helpers/index.js';
@@ -89,7 +88,9 @@ test.describe('View — CMS-56217 Taxonomy', () => {
         const assignedTerms = def.categories as string[];
         for (const termKey of assignedTerms) {
           await expect(
-            rawValueCell.locator('ul > li', { hasText: termKey }),
+            // Use exact regex match — { hasText: 'Taxanomy' } is a substring match
+            // and would also match 'Taxanomy_Internal', returning 2 elements.
+            rawValueCell.locator('ul > li').filter({ hasText: new RegExp(`^${termKey}$`) }),
             `category list should contain term "${termKey}"`,
           ).toHaveCount(1);
         }
@@ -146,26 +147,45 @@ test.describe('Edit — CMS-56217 Taxonomy', () => {
       const resolved = fixtures[caseId];
       expect(resolved, `fixture "${caseId}" was not resolved`).toBeTruthy();
 
+      // loginToCms sets up auth cookies on `page`. openContentById then opens a
+      // NEW tab (same browser context = same cookies) so the CMS SPA boots fresh
+      // with the correct content hash — no race with SPA default-content load.
       await loginToCms(page, config);
+      const editTab = await openContentById(page, config, resolved.key);
 
       const collector = createErrorCollector();
-      collector.attach(page);
+      collector.attach(editTab);
 
-      await openContentById(page, config, resolved.key);
+      // Wait for the preview iframe with the CORRECT content key in the new tab.
+      const keyDashless = resolved.key.replace(/-/g, '');
+      const findFrame = () => editTab.frames().find((f) => f.url().includes(keyDashless));
 
-      // Get the preview iframe as a Frame, then use locators for precise assertions
-      const frame = await waitForPreviewFrame(page, 30_000);
+      let frame = findFrame();
+      if (!frame) {
+        const deadline = Date.now() + 30_000;
+        while (Date.now() < deadline) {
+          await editTab.waitForTimeout(500);
+          frame = findFrame();
+          if (frame) break;
+        }
+      }
+
+      if (!frame) {
+        throw new Error(
+          `Preview frame for key ${resolved.key} did not appear within 30s.\nFrames seen: ${editTab.frames().map((f) => f.url()).join(' | ')}`,
+        );
+      }
+
       await frame.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-      await frame.locator('body').waitFor({ state: 'visible', timeout: 10_000 });
 
       // Verify no application errors
       const body = frame.locator('body');
       await expect(body).not.toContainText('Application Error');
       await expect(body).not.toContainText('500 Internal Server Error');
 
-      // Verify title via value cell
+      // Wait for the component to fully render.
       const titleCell = frame.locator('tr[data-property="title"] td[data-col="value"]');
-      await expect(titleCell).toContainText(def.properties.title as string);
+      await expect(titleCell).toContainText(def.properties.title as string, { timeout: 20_000 });
 
       // ─── _metadata.categories — locate value cell precisely ──────────
       const rawValueCell = frame.locator('tr[data-property="_metadata.categories"] td[data-col="value"]');
@@ -178,7 +198,7 @@ test.describe('Edit — CMS-56217 Taxonomy', () => {
         const assignedTerms = def.categories as string[];
         for (const termKey of assignedTerms) {
           await expect(
-            rawValueCell.locator('ul > li', { hasText: termKey }),
+            rawValueCell.locator('ul > li').filter({ hasText: new RegExp(`^${termKey}$`) }),
             `edit: category list should contain term "${termKey}"`,
           ).toHaveCount(1);
         }
@@ -215,7 +235,8 @@ test.describe('Edit — CMS-56217 Taxonomy', () => {
       }
 
       expect(collector.errors, 'No critical errors in edit mode').toHaveLength(0);
-      collector.detach(page);
+      collector.detach(editTab);
+      await editTab.close();
     });
   }
 });

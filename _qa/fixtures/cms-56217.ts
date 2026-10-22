@@ -28,6 +28,16 @@ const TERMS = {
   internal: 'Taxanomy_Internal',
 } as const;
 
+// Per-term metadata sourced from Category Admin (screenshot-verified 2026-10-22).
+// usage reflects the actual value in the CMS — "Internal" terms are only visible
+// in authenticated contexts, which is why we assert it explicitly rather than
+// assuming all terms are "Public".
+export const TERM_META: Record<string, { displayName: string; usage: 'Public' | 'Internal' }> = {
+  [TERMS.taxonomy]:  { displayName: 'Taxonomy',  usage: 'Public'   },
+  [TERMS.internal]:  { displayName: 'Taxonomy Internal', usage: 'Internal' },
+  [TERMS.level3]:    { displayName: 'Taxanomy Level3',  usage: 'Public'   },
+};
+
 const HIERARCHY_PATH = [
   { key: 'Auto', displayName: 'Auto', taxonomy: 'categories', usage: 'Public' },
   { key: 'Taxanomy', displayName: 'Taxanomy', taxonomy: 'categories', usage: 'Public' },
@@ -61,6 +71,12 @@ const cases = {
     expected: {
       rawCategoryCount: 2,
       resolvedTermKeys: [TERMS.taxonomy, TERMS.internal],
+      // Per-term expected values from Category Admin (screenshot-verified 2026-10-22).
+      // Taxanomy_Internal has usage "Internal" — NOT "Public".
+      resolvedTermMeta: {
+        [TERMS.taxonomy]: { displayName: 'Taxonomy',          usage: 'Public'   },
+        [TERMS.internal]: { displayName: 'Taxonomy Internal', usage: 'Internal' },
+      } as Record<string, { displayName: string; usage: string }>,
     },
   },
 

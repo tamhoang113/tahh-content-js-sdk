@@ -91,6 +91,10 @@ describe.skipIf(!container)('CMS-56217: Taxonomy Categories Support', () => {
   test('resolveTaxonomy: true populates _metadata.resolvedCategories', async () => {
     const def = CMS_56217.cases.multiTaxonomy;
     const expectedTerms = def.expected!.resolvedTermKeys as string[];
+    const termMeta = def.expected!.resolvedTermMeta as Record<
+      string,
+      { displayName: string; usage: string }
+    >;
     const content = await fetchFirstByPath(fixtures.multiTaxonomy.path, true);
     const resolvedCategories = content?._metadata?.resolvedCategories as
       | ResolvedCategory[]
@@ -102,6 +106,7 @@ describe.skipIf(!container)('CMS-56217: Taxonomy Categories Support', () => {
     ).toBeDefined();
     expect(resolvedCategories).toHaveLength(expectedTerms.length);
 
+    // Each expected term must appear in the resolved list.
     const resolvedKeys = resolvedCategories!.map((r: ResolvedCategory) => r.key);
     for (const termKey of expectedTerms) {
       expect(
@@ -110,13 +115,25 @@ describe.skipIf(!container)('CMS-56217: Taxonomy Categories Support', () => {
       ).toBe(true);
     }
 
+    // Verify each resolved category against its per-term expected values.
+    // Do NOT assume all are "Public" — Taxanomy_Internal has usage "Internal".
     resolvedCategories!.forEach((resolved: ResolvedCategory, i: number) => {
       expect(resolved.key, `resolvedCategories[${i}].key required`).toBeTruthy();
       expect(resolved.displayName, `resolvedCategories[${i}].displayName required`).toBeTruthy();
       expect(resolved.taxonomy, `resolvedCategories[${i}].taxonomy`).toBe('categories');
-      expect(resolved.usage, `resolvedCategories[${i}].usage`).toBe('Public');
       expect(Array.isArray(resolved.path), `resolvedCategories[${i}].path is array`).toBe(true);
       expect(resolved.path.length, `resolvedCategories[${i}].path should not be empty`).toBeGreaterThan(0);
+
+      // Look up exact expected usage from fixture — verified from Category Admin.
+      // Sort by length descending so "Taxanomy_Internal" matches before "Taxanomy".
+      const matchedTermKey = [...expectedTerms]
+        .sort((a, b) => b.length - a.length)
+        .find((k) => resolved.key.includes(k));
+      expect(matchedTermKey, `resolvedCategories[${i}].key should match a known term`).toBeTruthy();
+      const expectedMeta = termMeta[matchedTermKey!];
+      expect(resolved.usage, `resolvedCategories[${i}].usage ("${resolved.key}")`).toBe(
+        expectedMeta.usage,
+      );
     });
 
     const rawCategories = content._metadata?.categories as string[] | undefined;
@@ -129,7 +146,7 @@ describe.skipIf(!container)('CMS-56217: Taxonomy Categories Support', () => {
     const expectedDisplayName = def.expected!.resolvedDisplayName as string;
     const expectedTaxonomy = def.expected!.resolvedTaxonomy as string;
     const expectedUsage = def.expected!.resolvedUsage as string;
-    const expectedPath = def.expected!.hierarchyPath as Array<{
+    const expectedPath = def.expected!.hierarchyPath as ReadonlyArray<{
       key: string; displayName: string; taxonomy: string; usage: string;
     }>;
 
