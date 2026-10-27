@@ -34,7 +34,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: ${{ hashFiles('yarn.lock') != '' && 'yarn' || 'npm' }}
+          cache: ${{ hashFiles('test_deploy/ci-test-site/yarn.lock') != '' && 'yarn' || 'npm' }}
+          cache-dependency-path: test_deploy/ci-test-site/package-lock.json
 
       - name: Install dependencies
         working-directory: test_deploy/ci-test-site
