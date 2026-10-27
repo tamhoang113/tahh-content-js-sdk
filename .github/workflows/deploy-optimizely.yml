@@ -37,6 +37,22 @@ jobs:
           cache: ${{ hashFiles('test_deploy/ci-test-site/yarn.lock') != '' && 'yarn' || 'npm' }}
           cache-dependency-path: test_deploy/ci-test-site/package-lock.json
 
+      - name: Configure .env
+        working-directory: test_deploy/ci-test-site
+        run: |
+          cat > .env << ENVEOF
+          OPTIMIZELY_CMS_URL=${{ vars.OPTIMIZELY_CMS_URL }}
+          OPTIMIZELY_GRAPH_GATEWAY=${{ vars.OPTIMIZELY_GRAPH_GATEWAY }}
+          OPTIMIZELY_GRAPH_SINGLE_KEY=${{ vars.OPTIMIZELY_GRAPH_SINGLE_KEY }}
+          OPTIMIZELY_CMS_CLIENT_ID=${{ vars.OPTIMIZELY_CMS_CLIENT_ID }}
+          OPTIMIZELY_CMS_CLIENT_SECRET=${{ secrets.OPTIMIZELY_CMS_CLIENT_SECRET }}
+          OPTIMIZELY_CMS_API_URL=${{ vars.OPTIMIZELY_CMS_API_URL }}
+          OPTIMIZELY_DXP_PROJECT_ID=${{ secrets.OPTIMIZELY_DXP_PROJECT_ID }}
+          OPTIMIZELY_DXP_CLIENT_KEY=${{ secrets.OPTIMIZELY_DXP_CLIENT_KEY }}
+          OPTIMIZELY_DXP_CLIENT_SECRET=${{ secrets.OPTIMIZELY_DXP_CLIENT_SECRET }}
+          OPTIMIZELY_DXP_API_URL=${{ secrets.OPTIMIZELY_DXP_API_URL }}
+          ENVEOF
+
       - name: Install dependencies
         working-directory: test_deploy/ci-test-site
         run: if [ -f yarn.lock ]; then yarn install --frozen-lockfile; else npm ci; fi
