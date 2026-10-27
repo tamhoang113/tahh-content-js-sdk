@@ -1,0 +1,52 @@
+name: Test Deploy to DXP Frontend Hosting
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment (e.g. Integration, Preproduction, Production)
+        required: true
+        default: Integration
+      project_path:
+        description: Path to the Next.js project to deploy
+        required: true
+        default: test_deploy/my-nextjs-starter
+
+concurrency:
+  group: dxp-deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      OPTIMIZELY_DXP_PROJECT_ID: ${{ secrets.OPTIMIZELY_DXP_PROJECT_ID }}
+      OPTIMIZELY_DXP_CLIENT_KEY: ${{ secrets.OPTIMIZELY_DXP_CLIENT_KEY }}
+      OPTIMIZELY_DXP_CLIENT_SECRET: ${{ secrets.OPTIMIZELY_DXP_CLIENT_SECRET }}
+      OPTIMIZELY_DXP_API_URL: ${{ secrets.OPTIMIZELY_DXP_API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install project dependencies
+        working-directory: ${{ inputs.project_path }}
+        run: npm install
+
+      - name: Build project locally (fail-fast before upload)
+        working-directory: ${{ inputs.project_path }}
+        run: npm run build
+
+      - name: Install CLI dependencies
+        working-directory: packages/optimizely-cms-cli
+        run: npm install
+
+      - name: Build CLI
+        working-directory: packages/optimizely-cms-cli
+        run: npm run build
+
+      - name: Deploy to DXP
+        working-directory: ${{ inputs.project_path }}
+        run: node ../../packages/optimizely-cms-cli/bin/run.js deploy --env "${{ inputs.environment }}" --yes --timeout 30
