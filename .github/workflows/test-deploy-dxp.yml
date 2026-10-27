@@ -9,9 +9,14 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Target environment (e.g. Integration)
+        description: Target environment
         required: true
-        default: Integration
+        default: Production1
+        type: choice
+        options:
+          - Production1
+          - Integration
+          - Preproduction
       template:
         description: create-app template to use
         required: true
@@ -30,7 +35,7 @@ jobs:
   create-and-deploy:
     runs-on: ubuntu-latest
     env:
-      DEPLOY_ENV: ${{ inputs.environment || 'Integration' }}
+      DEPLOY_ENV: ${{ inputs.environment || 'Production1' }}
       TEMPLATE: ${{ inputs.template || 'nextjs-stride' }}
     steps:
       - uses: actions/checkout@v4
