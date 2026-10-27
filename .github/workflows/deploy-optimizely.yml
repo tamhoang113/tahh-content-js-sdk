@@ -37,6 +37,15 @@ jobs:
           cache: ${{ hashFiles('test_deploy/ci-test-site/yarn.lock') != '' && 'yarn' || 'npm' }}
           cache-dependency-path: test_deploy/ci-test-site/package-lock.json
 
+      # deploy command not yet published to npm — build CLI from monorepo source
+      - uses: pnpm/action-setup@v4
+
+      - name: Install monorepo dependencies
+        run: pnpm install
+
+      - name: Build SDK and CLI
+        run: pnpm --filter @optimizely/cms-sdk --filter @optimizely/cms-cli build
+
       - name: Configure .env
         working-directory: test_deploy/ci-test-site
         run: |
@@ -59,4 +68,4 @@ jobs:
 
       - name: Deploy
         working-directory: test_deploy/ci-test-site
-        run: npx optimizely-cms-cli deploy --env "$DEPLOY_ENVIRONMENT" --yes
+        run: node ../../packages/optimizely-cms-cli/bin/run.js deploy --env "$DEPLOY_ENVIRONMENT" --yes
