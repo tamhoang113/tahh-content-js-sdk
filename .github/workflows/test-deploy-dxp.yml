@@ -45,8 +45,8 @@ jobs:
       - name: Install monorepo dependencies
         run: pnpm install
 
-      - name: Build create-app and CLI
-        run: pnpm --filter @optimizely/cms-create-app --filter @optimizely/cms-cli build
+      - name: Build SDK, CLI, and create-app
+        run: pnpm --filter @optimizely/cms-sdk --filter @optimizely/cms-cli --filter @optimizely/cms-create-app build
 
       - name: Create app from template
         run: node packages/optimizely-cms-create-app/bin/cms-create-app.js test-site --template ${{ env.TEMPLATE }} --pm npm --skip-install
@@ -61,7 +61,7 @@ jobs:
           OPTIMIZELY_CMS_CLIENT_ID=${{ vars.OPTIMIZELY_CMS_CLIENT_ID }}
           OPTIMIZELY_CMS_CLIENT_SECRET=${{ secrets.OPTIMIZELY_CMS_CLIENT_SECRET }}
           OPTIMIZELY_CMS_API_URL=${{ vars.OPTIMIZELY_CMS_API_URL }}
-          APPLICATION_HOST=https://scct05headm5z3tp001.paastest.epimore.com
+          APPLICATION_HOST=${{ vars.APPLICATION_HOST }}
           OPTIMIZELY_DXP_PROJECT_ID=${{ secrets.OPTIMIZELY_DXP_PROJECT_ID }}
           OPTIMIZELY_DXP_CLIENT_KEY=${{ secrets.OPTIMIZELY_DXP_CLIENT_KEY }}
           OPTIMIZELY_DXP_CLIENT_SECRET=${{ secrets.OPTIMIZELY_DXP_CLIENT_SECRET }}
