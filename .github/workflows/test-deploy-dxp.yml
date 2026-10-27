@@ -35,28 +35,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
 
       - name: Install monorepo dependencies
-        run: npm install --ignore-scripts
+        run: pnpm install
 
-      - name: Build create-app
-        working-directory: packages/optimizely-cms-create-app
-        run: npm run build
-
-      - name: Build CLI
-        working-directory: packages/optimizely-cms-cli
-        run: npm run build
+      - name: Build create-app and CLI
+        run: pnpm --filter @optimizely/cms-create-app --filter @optimizely/cms-cli build
 
       - name: Create app from template
         run: node packages/optimizely-cms-create-app/bin/cms-create-app.js test-site --template ${{ env.TEMPLATE }} --pm npm --skip-install
 
-      - name: Configure .env with DXP credentials
+      - name: Configure .env
         working-directory: test-site
         run: |
-          cat >> .env << 'ENVEOF'
+          cat > .env << ENVEOF
+          OPTIMIZELY_CMS_URL=${{ vars.OPTIMIZELY_CMS_URL }}
+          OPTIMIZELY_GRAPH_GATEWAY=${{ vars.OPTIMIZELY_GRAPH_GATEWAY }}
+          OPTIMIZELY_GRAPH_SINGLE_KEY=${{ vars.OPTIMIZELY_GRAPH_SINGLE_KEY }}
+          OPTIMIZELY_CMS_CLIENT_ID=${{ vars.OPTIMIZELY_CMS_CLIENT_ID }}
+          OPTIMIZELY_CMS_CLIENT_SECRET=${{ secrets.OPTIMIZELY_CMS_CLIENT_SECRET }}
+          OPTIMIZELY_CMS_API_URL=${{ vars.OPTIMIZELY_CMS_API_URL }}
+          APPLICATION_HOST=${{ vars.APPLICATION_HOST }}
           OPTIMIZELY_DXP_PROJECT_ID=${{ secrets.OPTIMIZELY_DXP_PROJECT_ID }}
           OPTIMIZELY_DXP_CLIENT_KEY=${{ secrets.OPTIMIZELY_DXP_CLIENT_KEY }}
           OPTIMIZELY_DXP_CLIENT_SECRET=${{ secrets.OPTIMIZELY_DXP_CLIENT_SECRET }}
