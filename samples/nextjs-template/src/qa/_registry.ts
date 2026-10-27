@@ -32,6 +32,10 @@ import CMS54844HeroSectionComponent, {
 import CMS56217TaxonomyPageComponent, {
   CMS56217TaxonomyPage,
 } from '@/qa/CMS_56217_TaxonomyCategories';
+import CMS57435ArticlePageComponent, {
+  CMS57435ImageMedia,
+  CMS57435ArticlePage,
+} from '@/qa/CMS_57435_ContentReferenceItem';
 import {
   AutoBaseContract,
   AutoStringAllFields,
@@ -77,6 +81,8 @@ export const QA_CONTENT_TYPES = [
   CMS54844HeroSection,
   CMS54844HeroElement,
   CMS56217TaxonomyPage,
+  CMS57435ImageMedia,
+  CMS57435ArticlePage,
   AutoBaseContract,
   AutoStringAllFields,
   AutoBooleanAllFields,
@@ -117,5 +123,6 @@ export const QA_RESOLVERS = {
   CMS54844HeroSection: CMS54844HeroSectionComponent,
   CMS54844HeroElement: CMS54844HeroElementComponent,
   CMS56217TaxonomyPage: CMS56217TaxonomyPageComponent,
+  CMS57435ArticlePage: CMS57435ArticlePageComponent,
   AutoStringAllFields: AutoStringAllFieldsComponent,
 };
