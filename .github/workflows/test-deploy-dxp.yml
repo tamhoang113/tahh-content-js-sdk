@@ -1,29 +1,37 @@
 name: Test Deploy to DXP Frontend Hosting
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/optimizely-cms-cli/**'
+      - 'packages/optimizely-cms-create-app/**'
   workflow_dispatch:
     inputs:
       environment:
-        description: Target environment (e.g. Integration, Preproduction, Production)
+        description: Target environment (e.g. Integration)
         required: true
         default: Integration
-      project_path:
-        description: Path to the Next.js project to deploy
+      template:
+        description: create-app template to use
         required: true
-        default: test_deploy/my-nextjs-starter
+        default: nextjs-stride
+        type: choice
+        options:
+          - nextjs-stride
+          - nextjs-starter
+          - nextjs-alloy
 
 concurrency:
-  group: dxp-deploy-${{ inputs.environment }}
+  group: dxp-deploy-${{ inputs.environment || 'Integration' }}
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  create-and-deploy:
     runs-on: ubuntu-latest
     env:
-      OPTIMIZELY_DXP_PROJECT_ID: ${{ secrets.OPTIMIZELY_DXP_PROJECT_ID }}
-      OPTIMIZELY_DXP_CLIENT_KEY: ${{ secrets.OPTIMIZELY_DXP_CLIENT_KEY }}
-      OPTIMIZELY_DXP_CLIENT_SECRET: ${{ secrets.OPTIMIZELY_DXP_CLIENT_SECRET }}
-      OPTIMIZELY_DXP_API_URL: ${{ secrets.OPTIMIZELY_DXP_API_URL }}
+      DEPLOY_ENV: ${{ inputs.environment || 'Integration' }}
+      TEMPLATE: ${{ inputs.template || 'nextjs-stride' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,22 +39,38 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install project dependencies
-        working-directory: ${{ inputs.project_path }}
-        run: npm install
+      - name: Install monorepo dependencies
+        run: npm install --ignore-scripts
 
-      - name: Build project locally (fail-fast before upload)
-        working-directory: ${{ inputs.project_path }}
+      - name: Build create-app
+        working-directory: packages/optimizely-cms-create-app
         run: npm run build
-
-      - name: Install CLI dependencies
-        working-directory: packages/optimizely-cms-cli
-        run: npm install
 
       - name: Build CLI
         working-directory: packages/optimizely-cms-cli
         run: npm run build
 
+      - name: Create app from template
+        run: node packages/optimizely-cms-create-app/bin/cms-create-app.js test-site --template ${{ env.TEMPLATE }} --pm npm --skip-install
+
+      - name: Configure .env with DXP credentials
+        working-directory: test-site
+        run: |
+          cat >> .env << 'ENVEOF'
+          OPTIMIZELY_DXP_PROJECT_ID=${{ secrets.OPTIMIZELY_DXP_PROJECT_ID }}
+          OPTIMIZELY_DXP_CLIENT_KEY=${{ secrets.OPTIMIZELY_DXP_CLIENT_KEY }}
+          OPTIMIZELY_DXP_CLIENT_SECRET=${{ secrets.OPTIMIZELY_DXP_CLIENT_SECRET }}
+          OPTIMIZELY_DXP_API_URL=${{ secrets.OPTIMIZELY_DXP_API_URL }}
+          ENVEOF
+
+      - name: Install project dependencies
+        working-directory: test-site
+        run: npm install
+
+      - name: Build project (fail-fast before upload)
+        working-directory: test-site
+        run: npm run build
+
       - name: Deploy to DXP
-        working-directory: ${{ inputs.project_path }}
-        run: node ../../packages/optimizely-cms-cli/bin/run.js deploy --env "${{ inputs.environment }}" --yes --timeout 30
+        working-directory: test-site
+        run: node ../packages/optimizely-cms-cli/bin/run.js deploy --env "${{ env.DEPLOY_ENV }}" --yes --timeout 30
