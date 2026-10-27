@@ -1,5 +1,5 @@
 import React from 'react';
-import { contentType, ContentProps } from '@optimizely/cms-sdk';
+import { contentType, ContentProps, damAssets } from '@optimizely/cms-sdk';
 import { getPreviewUtils } from '@optimizely/cms-sdk/react/server';
 
 // ── Content Types ───────────────────────────────────────────────────────────
@@ -104,6 +104,146 @@ export default function CMS57435ArticlePageComponent({
         {content.__typename ?? 'CMS57435ArticlePage'}
       </div>
       <h1 {...pa('title')}>{content.title ?? 'CMS57435 Test Page'}</h1>
+
+      {/* ── AC: isDamImageAsset / isDamVideoAsset / isDamRawFileAsset still narrow ── */}
+      {(() => {
+        const { isDamImageAsset, isDamVideoAsset, isDamRawFileAsset, isDamAsset, getAlt, getDamAssetType, getSrcset } = damAssets(content);
+        const ref = content.heroImage;
+        const isImg = isDamImageAsset(ref);
+        const isVid = isDamVideoAsset(ref);
+        const isRaw = isDamRawFileAsset(ref);
+        const isDam = isDamAsset(ref);
+        const damType = getDamAssetType(ref);
+        const alt = getAlt(ref, '(no alt)');
+        const srcset = getSrcset(ref);
+        const item = ref?.item as any;
+        return (
+          <table
+            style={{
+              borderCollapse: 'collapse',
+              width: '100%',
+              border: '1px solid #e0e0e0',
+              background: '#fffbe6',
+              color: '#1a1a1a',
+              marginBottom: '1rem',
+            }}
+          >
+            <thead>
+              <tr>
+                <th colSpan={3} style={{ textAlign: 'left', padding: '0.5rem', background: '#fff3cd' }}>
+                  AC: Type Guard + DAM Asset Verification (heroImage)
+                </th>
+              </tr>
+              <tr>
+                <th>Check</th>
+                <th>Result</th>
+                <th>Expected</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-property="guard-typename">
+                <td>item.__typename</td>
+                <td data-col="value">{item?.__typename ?? '—'}</td>
+                <td>ImageMedia (CMS) or cmp_PublicImageAsset (DAM)</td>
+              </tr>
+              <tr data-property="guard-isDamImageAsset">
+                <td>isDamImageAsset(heroImage)</td>
+                <td data-col="value" style={{ color: isImg ? 'green' : '#888' }}>{String(isImg)}</td>
+                <td>true if DAM image, false if CMS media</td>
+              </tr>
+              <tr data-property="guard-isDamVideoAsset">
+                <td>isDamVideoAsset(heroImage)</td>
+                <td data-col="value">{String(isVid)}</td>
+                <td>true if DAM video</td>
+              </tr>
+              <tr data-property="guard-isDamRawFileAsset">
+                <td>isDamRawFileAsset(heroImage)</td>
+                <td data-col="value">{String(isRaw)}</td>
+                <td>true if DAM raw file</td>
+              </tr>
+              <tr data-property="guard-isDamAsset">
+                <td>isDamAsset(heroImage)</td>
+                <td data-col="value" style={{ fontWeight: 700 }}>{String(isDam)}</td>
+                <td>true if any DAM type, false if CMS media</td>
+              </tr>
+              <tr data-property="guard-getDamAssetType">
+                <td>getDamAssetType(heroImage)</td>
+                <td data-col="value" style={{ fontWeight: 700 }}>{damType}</td>
+                <td>image / video / file / unknown</td>
+              </tr>
+              <tr data-property="guard-getAlt">
+                <td>getAlt(heroImage, &apos;(no alt)&apos;)</td>
+                <td data-col="value">{alt}</td>
+                <td>AltText value or fallback</td>
+              </tr>
+              <tr data-property="guard-getSrcset">
+                <td>getSrcset(heroImage)</td>
+                <td data-col="value" style={{ maxWidth: 400, wordBreak: 'break-all', fontSize: '0.8rem' }}>{srcset ?? '(undefined — no Renditions)'}</td>
+                <td>srcset string if DAM with Renditions</td>
+              </tr>
+
+              {/* DAM-specific fields (PublicImageAsset) */}
+              <tr><td colSpan={3} style={{ background: '#f0f0f0', fontWeight: 700, padding: '0.3rem' }}>DAM Image Asset Fields</td></tr>
+              <tr data-property="dam-Url">
+                <td>item.Url</td>
+                <td data-col="value" style={{ maxWidth: 400, wordBreak: 'break-all', fontSize: '0.8rem' }}>{item?.Url ?? '—'}</td>
+                <td>DAM asset URL</td>
+              </tr>
+              <tr data-property="dam-Title">
+                <td>item.Title</td>
+                <td data-col="value">{item?.Title ?? '—'}</td>
+                <td>DAM title</td>
+              </tr>
+              <tr data-property="dam-Description">
+                <td>item.Description</td>
+                <td data-col="value">{item?.Description ?? '—'}</td>
+                <td>DAM description</td>
+              </tr>
+              <tr data-property="dam-AltText">
+                <td>item.AltText</td>
+                <td data-col="value">{item?.AltText ?? '—'}</td>
+                <td>Alt text</td>
+              </tr>
+              <tr data-property="dam-MimeType">
+                <td>item.MimeType</td>
+                <td data-col="value">{item?.MimeType ?? '—'}</td>
+                <td>MIME type</td>
+              </tr>
+              <tr data-property="dam-Width">
+                <td>item.Width</td>
+                <td data-col="value">{item?.Width ?? '—'}</td>
+                <td>Image width (DAM)</td>
+              </tr>
+              <tr data-property="dam-Height">
+                <td>item.Height</td>
+                <td data-col="value">{item?.Height ?? '—'}</td>
+                <td>Image height (DAM)</td>
+              </tr>
+              <tr data-property="dam-FocalPoint">
+                <td>item.FocalPoint</td>
+                <td data-col="value">{item?.FocalPoint ? `X: ${item.FocalPoint.X}, Y: ${item.FocalPoint.Y}` : '—'}</td>
+                <td>Focal point (DAM image only)</td>
+              </tr>
+              <tr data-property="dam-Tags">
+                <td>item.Tags</td>
+                <td data-col="value" style={{ fontSize: '0.8rem' }}>{item?.Tags?.length ? JSON.stringify(item.Tags) : '—'}</td>
+                <td>DAM tags</td>
+              </tr>
+              <tr data-property="dam-Renditions">
+                <td>item.Renditions</td>
+                <td data-col="value" style={{ maxWidth: 400, wordBreak: 'break-all', fontSize: '0.75rem' }}>
+                  {item?.Renditions?.length
+                    ? item.Renditions.map((r: any, i: number) => (
+                        <div key={i}>{r.Name}: {r.Width}x{r.Height}</div>
+                      ))
+                    : '—'}
+                </td>
+                <td>Rendition list (Name, Width x Height)</td>
+              </tr>
+            </tbody>
+          </table>
+        );
+      })()}
 
       <table
         style={{
