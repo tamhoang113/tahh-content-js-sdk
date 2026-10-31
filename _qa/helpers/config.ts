@@ -24,6 +24,7 @@ export function loadSiteConfig(templateOrPath: string): SiteConfig {
       stride: 'templates/stride/.env',
       alloy: 'templates/alloy/.env',
       'nextjs-template': 'samples/nextjs-template/.env',
+      'qa-app': 'qa-app/.env',
     };
     const rel = templateMap[templateOrPath];
     if (!rel) {
@@ -51,7 +52,7 @@ export function loadSiteConfig(templateOrPath: string): SiteConfig {
     graphAppKey: env.OPTIMIZELY_GRAPH_APP_KEY ?? '',
     graphSecret: env.OPTIMIZELY_GRAPH_SECRET ?? '',
     baseUrl: env.APPLICATION_HOST ?? env.BASE_URL ?? 'https://localhost:3000',
-    cmsUser: env.CMS_SMOKE_USER ?? process.env.CMS_SMOKE_USER ?? 'cms.auto1+admin@optimizely.com',
+    cmsUser: env.CMS_SMOKE_USER ?? process.env.CMS_SMOKE_USER ?? 'cms.auto1+admin1@optimizely.com',
     cmsPass: env.CMS_SMOKE_PASS ?? process.env.CMS_SMOKE_PASS ?? '',
     clientId: env.OPTIMIZELY_CMS_CLIENT_ID ?? process.env.OPTIMIZELY_CMS_CLIENT_ID ?? '',
     clientSecret: env.OPTIMIZELY_CMS_CLIENT_SECRET ?? process.env.OPTIMIZELY_CMS_CLIENT_SECRET ?? '',

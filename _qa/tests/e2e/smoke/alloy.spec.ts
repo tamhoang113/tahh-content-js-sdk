@@ -48,11 +48,11 @@ test.describe('Edit Mode — Alloy', () => {
       await loginToCms(page, config);
 
       const collector = createErrorCollector();
-      collector.attach(page);
 
-      await openContentById(page, config, cmsId);
+      const editPage = await openContentById(page, config, cmsId);
+      collector.attach(editPage);
 
-      const bodyText = await page.locator('body').innerText().catch(() => '');
+      const bodyText = await editPage.locator('body').innerText().catch(() => '');
       expect(bodyText).not.toContain('Application Error');
       expect(bodyText).not.toContain('500 Internal Server Error');
 
@@ -61,7 +61,8 @@ test.describe('Edit Mode — Alloy', () => {
         `Critical errors on ${pageName} (id=${cmsId})`,
       ).toHaveLength(0);
 
-      collector.detach(page);
+      collector.detach(editPage);
+      await editPage.close();
     });
   }
 });

@@ -116,16 +116,11 @@ test.describe('Edit — CMS-54844 section properties flat', () => {
     await loginToCms(page, config);
 
     const collector = createErrorCollector();
-    collector.attach(page);
 
-    await openContentById(page, config, lookup!.key);
+    const editPage = await openContentById(page, config, lookup!.key);
+    collector.attach(editPage);
 
-    // Preview content verification is a HARD requirement — do NOT wrap in
-    // try/catch (see QA_CONTEXT.md §6.3). An earlier version bundled the
-    // frame wait AND assertions inside one try/catch as "best-effort", which
-    // silently swallowed content-mismatch failures whenever the preview was
-    // merely slow, and defeated the whole purpose of asserting values.
-    const { text: previewText, frameUrl } = await getPreviewFrameText(page, lookup!.key, 30_000);
+    const { text: previewText, frameUrl } = await getPreviewFrameText(editPage, lookup!.key, 30_000);
 
     expect(previewText, `Heading label+value pair missing/mismatched in preview. Expected: "${EXPECTED_PAIRS.heading}". frameUrl="${frameUrl}"`)
       .toContain(EXPECTED_PAIRS.heading);
@@ -137,6 +132,7 @@ test.describe('Edit — CMS-54844 section properties flat', () => {
       .not.toContain('(undefined)');
 
     expect(collector.errors, 'No critical errors in edit mode').toHaveLength(0);
-    collector.detach(page);
+    collector.detach(editPage);
+    await editPage.close();
   });
 });

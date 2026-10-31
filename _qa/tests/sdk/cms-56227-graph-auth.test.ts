@@ -541,7 +541,7 @@ describe('[TC-011] CMS-56227: Access Rights — restricted content visibility', 
       graphUrl: GRAPH_URL,
       auth: {
         type: 'hmac',
-        asUser: { username: 'cms.auto1+admin@optimizely.com' },
+        asUser: { username: 'cms.auto1+admin1@optimizely.com' },
       },
       secrets: SECRETS,
     });

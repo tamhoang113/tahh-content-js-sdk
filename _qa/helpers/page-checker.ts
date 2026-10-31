@@ -138,16 +138,36 @@ export async function getPreviewFrameText(
   expectedContentKey?: string,
   timeoutMs = 20_000,
 ): Promise<{ text: string; frameUrl: string }> {
-  const frame = await waitForPreviewFrame(page, timeoutMs);
-  const frameUrl = frame.url();
+  let frame: Frame;
+  let frameUrl: string;
 
   if (expectedContentKey) {
     const expectedKeyDashless = expectedContentKey.replace(/-/g, '');
-    if (!frameUrl.includes(expectedKeyDashless)) {
-      throw new Error(
-        `Preview iframe URL does not reference the expected content key. Expected key "${expectedContentKey}" in URL, got: ${frameUrl}`,
-      );
+    const start = Date.now();
+    let lastSeenUrl = '';
+    while (true) {
+      const match = page.frames().find((f) => {
+        const url = f.url();
+        return /\/preview\?key=/.test(url) && url.includes(expectedKeyDashless);
+      });
+      if (match) {
+        frame = match;
+        frameUrl = match.url();
+        break;
+      }
+      const candidate = page.frames().find((f) => /\/preview\?key=/.test(f.url()));
+      if (candidate) lastSeenUrl = candidate.url();
+      if (Date.now() - start > timeoutMs) {
+        throw new Error(
+          `Preview iframe for content key "${expectedContentKey}" did not appear within ${timeoutMs}ms.` +
+          (lastSeenUrl ? ` Last preview iframe URL seen: ${lastSeenUrl}` : ' No preview iframe found at all.'),
+        );
+      }
+      await page.waitForTimeout(300);
     }
+  } else {
+    frame = await waitForPreviewFrame(page, timeoutMs);
+    frameUrl = frame.url();
   }
 
   await frame.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => {});

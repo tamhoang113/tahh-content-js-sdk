@@ -101,19 +101,12 @@ test.describe('Edit — CMS-54651 MultiContract', () => {
     await loginToCms(page, config);
 
     const collector = createErrorCollector();
-    collector.attach(page);
 
-    await openContentById(page, config, lookup!.key);
+    const editPage = await openContentById(page, config, lookup!.key);
+    collector.attach(editPage);
 
-    // Preview content verification is a HARD requirement — do NOT wrap this in
-    // try/catch. An earlier version caught everything here as "best-effort",
-    // which silently swallowed real content-mismatch failures whenever the
-    // preview iframe was merely slow, defeating the purpose of the assertions.
-    const { text: previewText, frameUrl } = await getPreviewFrameText(page, lookup!.key, 30_000);
+    const { text: previewText, frameUrl } = await getPreviewFrameText(editPage, lookup!.key, 30_000);
 
-    // Verify actual field VALUES, not just section labels ("Teaser Contract",
-    // "Another Contract") — a missing value with the label still shown would
-    // mean expandContracts regressed while the section shell still renders.
     expect(previewText, `"title" (own property) missing/empty. frameUrl="${frameUrl}"`)
       .toContain(EXPECTED_VALUES.title);
     expect(previewText, `"teaserTitle" value missing. frameUrl="${frameUrl}"`)
@@ -126,7 +119,8 @@ test.describe('Edit — CMS-54651 MultiContract', () => {
     expect(previewText).not.toContain('500 Internal Server Error');
 
     expect(collector.errors, 'No critical errors in edit mode').toHaveLength(0);
-    collector.detach(page);
+    collector.detach(editPage);
+    await editPage.close();
   });
 
   test('array page preview renders in edit mode', async ({ page }) => {
@@ -139,18 +133,13 @@ test.describe('Edit — CMS-54651 MultiContract', () => {
     await loginToCms(page, config);
 
     const collector = createErrorCollector();
-    collector.attach(page);
 
-    await openContentById(page, config, lookup!.key);
+    const editPage = await openContentById(page, config, lookup!.key);
+    collector.attach(editPage);
 
-    // Hard requirement — see comment in the "contract page" test above for why
-    // this must NOT be wrapped in a try/catch that swallows assertion failures.
-    const { text: previewText, frameUrl } = await getPreviewFrameText(page, lookup!.key, 30_000);
+    const { text: previewText, frameUrl } = await getPreviewFrameText(editPage, lookup!.key, 30_000);
     expect(previewText, `Preview body empty/missing expected text. frameUrl="${frameUrl}"`)
       .toContain('Items');
-    // Verify actual field VALUES from the nested CMS54651PageWithMultipleContracts
-    // item — not just section labels ("Another Contract"). Missing values here
-    // means expandContracts regressed for this array (same bug class as CMS-54935).
     expect(previewText, `Nested contract page "title" (own property) missing/empty. frameUrl="${frameUrl}"`)
       .toContain(EXPECTED_VALUES.title);
     expect(previewText, `Nested contract page "teaserTitle" value missing. frameUrl="${frameUrl}"`)
@@ -163,6 +152,7 @@ test.describe('Edit — CMS-54651 MultiContract', () => {
     expect(previewText).not.toContain('500 Internal Server Error');
 
     expect(collector.errors, 'No critical errors in edit mode').toHaveLength(0);
-    collector.detach(page);
+    collector.detach(editPage);
+    await editPage.close();
   });
 });

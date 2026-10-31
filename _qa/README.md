@@ -36,7 +36,7 @@ OPTIMIZELY_GRAPH_SINGLE_KEY=xxx
 OPTIMIZELY_PLATFORM=saas
 
 # Required cho E2E smoke tests
-CMS_SMOKE_USER=cms.auto1+admin@optimizely.com
+CMS_SMOKE_USER=cms.auto1+admin1@optimizely.com
 CMS_SMOKE_PASS=xxx
 ```
 
