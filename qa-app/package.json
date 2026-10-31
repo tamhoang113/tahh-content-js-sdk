@@ -1,0 +1,24 @@
+{
+  "name": "qa-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --experimental-https -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "opti-push": "optimizely-cms-cli config push optimizely.config.mjs"
+  },
+  "dependencies": {
+    "@optimizely/cms-sdk": "workspace:*",
+    "next": "16.3.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@optimizely/cms-cli": "workspace:*",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}
