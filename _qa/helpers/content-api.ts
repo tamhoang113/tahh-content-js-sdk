@@ -39,6 +39,12 @@ export interface CreateContentInput {
   publish?: boolean;
   /** Content key (GUID). Generated if omitted. */
   key?: string;
+  /**
+   * Pre-wrapped properties in raw Integration API format. Merged into the
+   * version payload WITHOUT `wrapProperties()` — use for component properties
+   * or other nested structures that are already in `{ value: ... }` format.
+   */
+  rawProperties?: Record<string, unknown>;
 }
 
 export interface CreatedContent {
@@ -194,8 +200,7 @@ export async function createContent(
     locale: input.locale,
     properties: {
       ...wrapProperties(input.properties),
-      // Taxonomy categories are a content property (URI list), not a separate
-      // item-level field.
+      ...(input.rawProperties ?? {}),
       ...buildCategoryProperty(input.categories),
     },
   };
@@ -240,6 +245,88 @@ export async function createContent(
     status: publish ? 'published' : 'draft',
     raw,
   };
+}
+
+/**
+ * Patch the properties of a content item's latest version via the Integration API.
+ *
+ * Use after `createContent()` to set content references or update properties that
+ * depend on other items already existing (e.g. BodyContent = [ref to page A, ref
+ * to page B]). Creates a new draft version with the patched properties, then
+ * optionally publishes it.
+ *
+ * Property values follow the Integration API `{ value: ... }` wrapper convention,
+ * same as `createContent()`.
+ */
+export async function patchContentVersion(
+  config: SiteConfig,
+  key: string,
+  properties: Record<string, unknown>,
+  options?: { publish?: boolean; locale?: string },
+): Promise<void> {
+  const token = await getAccessToken(config);
+  const publish = options?.publish ?? true;
+  const cleanKey = key.replace(/-/g, '');
+
+  // Read the latest version to get its displayName (required by POST /versions)
+  // and locale, so the new version inherits them.
+  const versionsUrl = `${config.cmsApiUrl}/v1/content/${cleanKey}/versions?pageSize=1`;
+  const versionsRes = await fetch(versionsUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!versionsRes.ok) {
+    throw new Error(`GET versions for ${cleanKey} failed: ${versionsRes.status}`);
+  }
+  const versionsData = await versionsRes.json();
+  const latest = versionsData.items?.[0];
+  if (!latest) {
+    throw new Error(`No versions found for content ${cleanKey}`);
+  }
+
+  // Merge: start with existing properties from the latest version, then overlay
+  // the caller's updates. This ensures properties not being patched (e.g. Title)
+  // are preserved in the new version — POST /versions replaces ALL properties,
+  // it does not merge.
+  const existingProps: Record<string, unknown> = latest.properties ?? {};
+
+  const wrappedUpdates: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(properties)) {
+    if (v !== null && typeof v === 'object' && 'value' in (v as Record<string, unknown>)) {
+      wrappedUpdates[k] = v; // already wrapped
+    } else {
+      wrappedUpdates[k] = { value: v };
+    }
+  }
+
+  const mergedProps = { ...existingProps, ...wrappedUpdates };
+
+  const newVersionUrl = `${config.cmsApiUrl}/v1/content/${cleanKey}/versions`;
+  const res = await fetch(newVersionUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify({
+      displayName: latest.displayName,
+      locale: options?.locale ?? latest.locale ?? 'en',
+      properties: mergedProps,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `POST new version for ${cleanKey} failed: ${res.status} ${await res.text()}`,
+    );
+  }
+
+  const data = await res.json();
+  const newVersion = data.version;
+
+  if (publish && newVersion) {
+    await publishVersion(config, token, cleanKey, String(newVersion));
+  }
 }
 
 export interface ImportPackageOptions {

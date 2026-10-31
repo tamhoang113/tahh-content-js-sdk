@@ -172,11 +172,15 @@ async function ensureFeatureContainer(
   );
   if (existing) return existing;
 
+  // Container properties may include pre-wrapped values (e.g. component props
+  // like `hero: { value: { heading: { value: '...' } } }`). Pass them via
+  // rawProperties so createContent does not double-wrap them.
   const created = await createContent(config, {
     contentTypeKey,
     container: rootContainer,
     displayName,
     locale: def.locale,
+    rawProperties: def.featureContainer.properties,
     publish: true,
   });
   return created.key;
@@ -198,7 +202,7 @@ export async function ensureFixture(
   if (existing) return existing;
 
   await createContent(config, {
-    contentTypeKey: def.contentTypeKey,
+    contentTypeKey: fixtureCase.contentTypeKey ?? def.contentTypeKey,
     container: options.container,
     displayName,
     locale: def.locale,
@@ -298,12 +302,23 @@ export async function ensureStoryFixtures<
 
   // Sequential on purpose: creating + waiting for index in parallel can hammer
   // the Integration API and Graph; keep it predictable.
+  let anyCreated = false;
   for (const [caseId, fixtureCase] of entries) {
     resolved[caseId] = await ensureFixture(config, def, fixtureCase, {
       container,
       indexTimeoutMs,
       pollIntervalMs,
     });
+    if (resolved[caseId].created) anyCreated = true;
+  }
+
+  // Run the post-provision hook (e.g. patch content references between items).
+  // Runs whenever defined — even on pure resolve, because a prior run may have
+  // created items but failed during the hook (e.g. PATCH error), leaving data
+  // unlinked. The hook itself should be idempotent (re-patching the same refs is
+  // harmless).
+  if (def.afterProvision) {
+    await def.afterProvision(config, resolved);
   }
 
   return resolved;

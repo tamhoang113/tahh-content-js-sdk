@@ -6,7 +6,7 @@ export { callSdkApi, getContentByPath, getContent, getItems, getContentByDisplay
 export { runCli, resolveProjectDir } from './cli-runner.js';
 export { loadSiteConfig } from './config.js';
 export { getAccessToken, getContentType, listContentTypes, deleteContentType } from './cms-api.js';
-export { createContent, getContentByKeyApi, importPackage, PACKAGE_MEDIA_TYPE } from './content-api.js';
+export { createContent, getContentByKeyApi, importPackage, patchContentVersion, PACKAGE_MEDIA_TYPE } from './content-api.js';
 export type { CreateContentInput, CreatedContent, ImportPackageOptions } from './content-api.js';
 export { ensureFixture, ensureStoryFixtures, resolveTestContainer } from './fixtures.js';
 export type { EnsureOptions } from './fixtures.js';

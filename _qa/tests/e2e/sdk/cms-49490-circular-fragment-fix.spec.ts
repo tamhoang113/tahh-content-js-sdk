@@ -1,22 +1,25 @@
 /**
  * CMS-49490: Circular fragment references — Edit Mode Preview (getPreviewContent)
  *
+ * Fixture-driven: test data is provisioned from the single source of truth in
+ * `_qa/fixtures/cms-49490.ts` instead of being added to the site by hand.
+ *
  * SDK test covers getContentByPath (view mode).
  * This E2E test covers getPreviewContent (edit mode) — a different code path
  * that also generates GraphQL fragments and could regress independently.
  *
  * Verification strategy (precise, no false-pass from parent text):
  *   - Second tr[data-property="BodyContent"] = child ArticlePage's own row
- *     → exists only if self-referencing child rendered its full table structure
+ *     -> exists only if self-referencing child rendered its full table structure
  *   - tr[data-property="MainMap"] = only MapPage has this property
- *     → exists only if cross-referencing MapPage child rendered
- *   If circular fragment regresses, children return only __typename → no table
- *   rows → both locators fail.
+ *     -> exists only if cross-referencing MapPage child rendered
+ *   If circular fragment regresses, children return only __typename -> no table
+ *   rows -> both locators fail.
  *
- * Fixture: CMS49490_ArticalPage
- *   Title = "I'm ArticalPage"
- *   BodyContent[0] = CMS49490ArticlePage (self-ref)
- *   BodyContent[1] = CMS49490MapPage,    Title = "I'm Map Page"
+ * Prerequisites:
+ *   1. Content types pushed:  cd qa-app && opti-cms push
+ *   2. CMS_TEST_CONTAINER (or CMS_TEST_CONTAINER_CMS_49490) = parent container GUID
+ *   3. Dev server running:    cd qa-app && pnpm dev
  *
  * Run:
  *   pnpm test:e2e -- --grep "CMS-49490"
@@ -28,32 +31,34 @@ import {
   loginToCms,
   openContentById,
   createErrorCollector,
-  findContentPathByDisplayName,
   waitForPreviewFrame,
 } from '../../../helpers/index.js';
+import { ensureStoryFixtures, resolveTestContainer } from '../../../helpers/fixtures.js';
+import { CMS_49490 } from '../../../fixtures/cms-49490.js';
+import type { ResolvedFixture } from '../../../fixtures/types.js';
+import type { CMS49490CaseId } from '../../../fixtures/cms-49490.js';
 
 const config = loadSiteConfig('qa-app');
-
-const TEST_DISPLAY_NAME = process.env.CMS49490_TEST_DISPLAY_NAME ?? 'CMS49490_ArticalPage';
-
-const EXPECTED = {
-  title: process.env.CMS49490_EXPECTED_TITLE ?? "I'm ArticalPage",
-  child1Title: process.env.CMS49490_EXPECTED_CHILD1_TITLE ?? "I'm Map Page",
-};
+const container = resolveTestContainer(CMS_49490.ticket);
+const EXPECTED = CMS_49490.cases.articlePage.expected!;
 
 test.describe('Edit — CMS-49490 CircularFragmentFix (getPreviewContent)', () => {
+  let fixtures: Record<CMS49490CaseId, ResolvedFixture>;
+
+  test.beforeAll(async () => {
+    test.skip(!container, 'CMS_TEST_CONTAINER not set — skipping fixture-driven E2E');
+    fixtures = await ensureStoryFixtures(config, CMS_49490, {
+      container: container!,
+    });
+  });
 
   test('preview renders self-ref and cross-ref children with full table structure', async ({ page }) => {
-    const lookup = await findContentPathByDisplayName(config, TEST_DISPLAY_NAME);
-    expect(
-      lookup,
-      `No content found with displayName "${TEST_DISPLAY_NAME}" — set CMS49490_TEST_DISPLAY_NAME`,
-    ).toBeTruthy();
+    test.skip(!container, 'CMS_TEST_CONTAINER not set');
 
     await loginToCms(page, config);
 
     const collector = createErrorCollector();
-    const editPage = await openContentById(page, config, lookup!.key);
+    const editPage = await openContentById(page, config, fixtures.articlePage.key);
     collector.attach(editPage);
 
     const frame = await waitForPreviewFrame(editPage, 30_000);
@@ -64,7 +69,6 @@ test.describe('Edit — CMS-49490 CircularFragmentFix (getPreviewContent)', () =
 
     // 1. Self-reference proof: second tr[data-property="BodyContent"] belongs to
     //    child ArticlePage — only exists if child rendered its own full table.
-    //    If circular fragment regresses, child has only __typename → no table rows.
     const childArticleBodyRow = frame.locator('tr[data-property="BodyContent"]').nth(1);
     await expect(
       childArticleBodyRow,
@@ -76,17 +80,17 @@ test.describe('Edit — CMS-49490 CircularFragmentFix (getPreviewContent)', () =
     const childMapMainMapRow = frame.locator('tr[data-property="MainMap"]');
     await expect(
       childMapMainMapRow,
-      'MapPage child (cross-ref) did not render its MainMap row — indirect cycle (ArticlePage↔MapPage) regression in getPreviewContent',
+      'MapPage child (cross-ref) did not render its MainMap row — indirect cycle (ArticlePage<->MapPage) regression in getPreviewContent',
     ).toBeVisible({ timeout: 10_000 });
 
-    // 3. MapPage child's Title must be "I'm Map Page" — scoped: find the Title
+    // 3. MapPage child's Title must match expected — scoped: find the Title
     //    cell that is a sibling of MainMap within the same table (MapPage's table)
     const mapPageTable = childMapMainMapRow.locator('xpath=ancestor::table[1]');
     const mapPageTitleCell = mapPageTable.locator('tr[data-property="Title"] td[data-col="value"]');
     await expect(
       mapPageTitleCell,
       `MapPage child Title should be "${EXPECTED.child1Title}"`,
-    ).toContainText(EXPECTED.child1Title);
+    ).toContainText(EXPECTED.child1Title as string);
 
     // 4. No errors
     const fullText = await frame.locator('body').innerText().catch(() => '');

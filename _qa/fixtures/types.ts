@@ -1,3 +1,5 @@
+import type { SiteConfig } from '../helpers/types.js';
+
 /**
  * Story-based test fixtures — shared shape.
  *
@@ -41,6 +43,14 @@ export interface FixtureCase {
    * assert".
    */
   expected?: Record<string, unknown>;
+
+  /**
+   * Per-case content type override. When set, the ensure engine creates this case
+   * as the given content type instead of the story-level `contentTypeKey`. Useful
+   * when a story needs instances of different types (e.g. CMS-49490 has both
+   * ArticlePage and MapPage).
+   */
+  contentTypeKey?: string;
 }
 
 /** How a story's fixture content is provisioned when missing. */
@@ -110,12 +120,28 @@ export interface StoryFixtureDefinition<
   featureContainer?: {
     /** Display name of the container. Defaults to the story `slug`. */
     displayName?: string;
-    /** Content type to create the container as (e.g. `BlankExperience`). */
+    /** Content type to create the container as (e.g. `LandingExperience`). */
     contentTypeKey: string;
+    /** Properties to set on the container (e.g. hero heading/summary for context). */
+    properties?: Record<string, unknown>;
   };
 
   /** Named cases, keyed by a logical id used by test code. */
   cases: TCases;
+
+  /**
+   * Optional post-provision callback. Runs ONCE after all cases have been created
+   * (or resolved), receiving their resolved keys so it can set up cross-references
+   * between items — e.g. patching ArticlePage.BodyContent = [ref to self, ref to
+   * MapPage] after both items exist.
+   *
+   * Only runs when at least one case was created in this run (not on pure resolve).
+   * Receives the SiteConfig so it can call `patchContentVersion()` directly.
+   */
+  afterProvision?: (
+    config: SiteConfig,
+    resolved: Record<string, ResolvedFixture>,
+  ) => Promise<void>;
 }
 
 /** What `ensureFixture()` resolves a case to at runtime. */
