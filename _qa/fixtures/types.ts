@@ -51,6 +51,13 @@ export interface FixtureCase {
    * ArticlePage and MapPage).
    */
   contentTypeKey?: string;
+
+  /**
+   * Per-case locale override. When set, the ensure engine creates this case in
+   * the given locale instead of the story-level `locale`. Useful when a story
+   * needs content in multiple locales (e.g. CMS-56675 locale fallback test).
+   */
+  locale?: string;
 }
 
 /** How a story's fixture content is provisioned when missing. */

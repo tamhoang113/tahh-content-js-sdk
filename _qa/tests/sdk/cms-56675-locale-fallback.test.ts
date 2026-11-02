@@ -1,26 +1,8 @@
 /**
  * CMS-56675: getPath and getItems ignore language fallbacks and reject BCP-47 locales
  *
- * Bug: getContent(), getItems(), and getPath() filtered on `_metadata.locale` which
- *      excluded fallback documents, causing them to return null. Hyphenated locales
- *      like `nl-BE` were rejected with a GraphQL enum error.
- *
- * Fix (PR #619):
- *   1. Locale moved from WHERE `_metadata.locale` to `locale:` field argument
- *   2. BCP-47 canonicalization (`nl-BE` → `nl_BE`)
- *   3. Unset references normalized to `null`
- *
- * Fixture setup:
- *   - CMS language fallback configured: fr → nl, nl-BE → nl
- *   - One page published in `nl` locale ONLY (no fr or nl-BE version)
- *   - Tests request content in fr / nl-BE and expect the nl fallback to be returned
- *
- * Uses existing AutoStringAllFields content type — locale handling is type-agnostic.
- *
- * Prerequisites:
- *   1. AutoStringAllFields page created in CMS, published in `nl` locale only
- *   2. Language fallback configured: fr → nl, nl-BE → nl
- *   3. Dev server running:    cd samples/nextjs-template && pnpm dev
+ * Fixture: _qa/fixtures/cms-56675.ts (auto-provisioned via Integration API)
+ * Requires CMS language fallback config: fr → nl, nl-BE → nl
  *
  * Run:
  *   pnpm test:sdk -- cms-56675
@@ -29,37 +11,29 @@
 import { describe, test, expect, beforeAll } from 'vitest';
 import { loadSiteConfig } from '../../helpers/config.js';
 import { callSdkApi } from '../../helpers/sdk-api.js';
+import { ensureStoryFixtures, resolveTestContainer } from '../../helpers/fixtures.js';
 import { findContentPathByDisplayName } from '../../helpers/graph-api.js';
+import { CMS_56675 } from '../../fixtures/cms-56675.js';
 
-const config = loadSiteConfig('nextjs-template');
+const config = loadSiteConfig('qa-app');
+const container = resolveTestContainer();
 
-const TEST_DISPLAY_NAME =
-  process.env.CMS56675_TEST_DISPLAY_NAME ?? 'CMS56675_LocaleFallback_nl';
+const EXPECTED = CMS_56675.cases.parentPage.expected;
 
-const EXPECTED_VALUES = {
-  fullString:
-    process.env.CMS56675_EXPECTED_FULL_STRING ?? 'This is master version in nl language',
-};
-
-describe('CMS-56675: Locale Fallback — SDK API', () => {
+describe.skipIf(!container)('CMS-56675: Locale Fallback — SDK API', () => {
   let contentKey: string;
   let childKey: string;
 
   beforeAll(async () => {
-    const lookup = await findContentPathByDisplayName(config, TEST_DISPLAY_NAME);
-    if (!lookup) {
-      throw new Error(
-        `No content found with displayName "${TEST_DISPLAY_NAME}" — create the test page or set CMS56675_TEST_DISPLAY_NAME`,
-      );
-    }
-    contentKey = lookup.key;
+    const fixtures = await ensureStoryFixtures(config, CMS_56675, { container });
+    contentKey = fixtures.parentPage.key;
 
     const childLookup = await findContentPathByDisplayName(config, 'CMS56675_ChildItem_nl_BE');
     if (!childLookup) {
-      throw new Error('CMS56675_ChildItem_nl_BE not found — create the fixture');
+      throw new Error('CMS56675_ChildItem_nl_BE not found — afterProvision may have failed');
     }
     childKey = childLookup.key;
-  });
+  }, 180_000);
 
   // ─── Core locale: nl (source language) ─────────────────────────────────────
 
@@ -71,7 +45,7 @@ describe('CMS-56675: Locale Fallback — SDK API', () => {
 
     expect(result.error).toBeUndefined();
     expect(result.data, 'getContent(nl) should return data').toBeTruthy();
-    expect(result.data?.fullString).toBe(EXPECTED_VALUES.fullString);
+    expect(result.data?.fullString).toBe(EXPECTED.fullString);
   });
 
   // ─── Fallback: fr → nl ─────────────────────────────────────────────────────
@@ -89,7 +63,7 @@ describe('CMS-56675: Locale Fallback — SDK API', () => {
       result.data,
       'getContent(fr) should return nl fallback content, not null',
     ).toBeTruthy();
-    expect(result.data?.fullString).toBe(EXPECTED_VALUES.fullString);
+    expect(result.data?.fullString).toBe(EXPECTED.fullString);
   });
 
   // ─── Hyphenated BCP-47: nl-BE → nl ─────────────────────────────────────────
@@ -107,7 +81,7 @@ describe('CMS-56675: Locale Fallback — SDK API', () => {
       result.data,
       'getContent(nl-BE) should return nl fallback content',
     ).toBeTruthy();
-    expect(result.data?.fullString).toBe(EXPECTED_VALUES.fullString);
+    expect(result.data?.fullString).toBe(EXPECTED.fullString);
   });
 
   // ─── getItems with fallback ─────────────────────────────────────────────────
@@ -206,15 +180,16 @@ describe('CMS-56675: Locale Fallback — SDK API', () => {
 
     expect(result.error).toBeUndefined();
     const path = Array.isArray(result.data) ? result.data : [];
-    expect(path.length, 'getPath(nl-BE) should return 2 nodes (parent + self)').toBe(2);
+    expect(path.length, 'getPath(nl-BE) should return at least 2 nodes (parent + self)').toBeGreaterThanOrEqual(2);
 
     const displayNames = path.map((n: any) => n._metadata?.displayName);
-    expect(displayNames[0], 'first node should be the parent (nl fallback)').toBe('CMS56675_LocaleFallback_nl');
-    expect(displayNames[1], 'second node should be the child itself').toBe('CMS56675_ChildItem_nl_BE');
+    const parent = path[path.length - 2];
+    const self = path[path.length - 1];
+    expect(displayNames[displayNames.length - 2], 'second-to-last should be the parent').toBe('CMS56675_LocaleFallback_nl');
+    expect(displayNames[displayNames.length - 1], 'last should be the child itself').toBe('CMS56675_ChildItem_nl_BE');
 
-    // Verify parent uses nl locale (fallback from nl-BE → nl)
-    expect(path[0]._metadata?.locale, 'parent locale should be nl (fallback source)').toBe('nl');
-    expect(path[1]._metadata?.locale, 'child locale should be nl-BE').toBe('nl-BE');
+    expect(parent._metadata?.locale, 'parent locale should be nl (fallback source)').toBe('nl');
+    expect(self._metadata?.locale, 'child locale should be nl-BE').toBe('nl-BE');
   });
 
   test('getPath(no locale) returns full ancestor chain', async () => {

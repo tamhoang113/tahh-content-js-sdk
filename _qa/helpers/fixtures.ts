@@ -205,7 +205,7 @@ export async function ensureFixture(
     contentTypeKey: fixtureCase.contentTypeKey ?? def.contentTypeKey,
     container: options.container,
     displayName,
-    locale: def.locale,
+    locale: fixtureCase.locale ?? def.locale,
     properties: fixtureCase.properties,
     categories: fixtureCase.categories,
     publish: true,

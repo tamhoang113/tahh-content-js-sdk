@@ -80,7 +80,7 @@ tahh-content-js-sdk/
 // src/qa/_registry.ts — chỉ sửa file này khi thêm ticket mới
 export const QA_CONTENT_TYPES = [
   // contracts + content types (cả hai)
-  CMS49490MapPage, AutoBaseContract, AutoStringAllFields, ...
+  CMS49490MapPage, SharedBaseContract, PageStringProperty, ...ALL_PROPERTY_TYPES, ...
 ];
 
 export const QA_RESOLVERS = {
