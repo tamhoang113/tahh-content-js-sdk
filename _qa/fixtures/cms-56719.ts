@@ -1,25 +1,20 @@
 import type { StoryFixtureDefinition, FixtureCase } from './types.js';
+import { createVariationVersion } from '../helpers/content-api.js';
 
 /**
  * CMS-56719 — Variation filter fix for getContentByPath.
  *
- * Single source of truth for the variation test data. Uses existing
- * AutoStringAllFields content type (baseType: _page) with CMS variations.
+ * Single source of truth for the variation test data. Uses
+ * PageStringProperty content type (baseType: _page) with CMS variations.
  *
  * Content type source of truth (code-first):
- *   samples/nextjs-template/src/qa/Auto_Push_PropertyTypes.tsx
+ *   qa-app/src/components/all_properties/PageStringProperty.tsx
  *
- * MANUAL SETUP (variations cannot be provisioned via Integration API):
- *   1. Create an AutoStringAllFields page under the test container
- *   2. Set displayName to "CMS_56719_VariationFilter"
- *   3. Set fullString to "base-value" in the base version, publish
- *   4. Create 4 CMS variations: v_business, v_investments, v_mortgages, v_personal
- *   5. In each variation, set fullString to the variation's logical name
- *      (e.g. v_business → fullString "business")
- *   6. Publish all variations
+ * Auto-provisioned via Integration API:
+ *   1. ensureStoryFixtures creates the base page with fullString = "base-value"
+ *   2. afterProvision creates 4 variation versions via POST /versions
+ *   3. Each variation sets fullString to its logical name
  */
-
-const CONTENT_TYPE_KEY = 'AutoStringAllFields';
 
 export const VARIATION_DATA = [
   { variation: null,            fullString: 'base-value' },
@@ -31,7 +26,7 @@ export const VARIATION_DATA = [
 
 const cases = {
   variationPage: {
-    automationId: 'CMS_56719_VariationFilter',
+    automationId: 'CMS56719_VariationPage',
     properties: {
       fullString: 'base-value',
     },
@@ -46,11 +41,41 @@ const cases = {
 export const CMS_56719: StoryFixtureDefinition<typeof cases> = {
   ticket: 'CMS-56719',
   slug: 'CMS_56719_VariationFilter',
-  contentTypeKey: CONTENT_TYPE_KEY,
+  contentTypeKey: 'PageStringProperty',
   baseType: '_page',
   locale: 'en',
-  provision: 'manual',
+  provision: 'create',
+  featureContainer: {
+    displayName: 'CMS_56719_VariationFilterContainer',
+    contentTypeKey: 'LandingExperience',
+    properties: {
+      hero: {
+        value: {
+          properties: {
+            heading: { value: 'CMS-56719 Variation Filter Fix' },
+            summary: { value: 'getContentByPath with variation SOME/ALL should work correctly with includeOriginal' },
+          },
+        },
+      },
+    },
+  },
   cases,
+
+  async afterProvision(config, resolved) {
+    if (!resolved.variationPage.created) return; // page already existed → variations too
+
+    const key = resolved.variationPage.key;
+    for (const v of VARIATION_DATA) {
+      if (v.variation === null) continue;
+      await createVariationVersion(config, key, v.variation, {
+        fullString: v.fullString,
+      }, {
+        publish: true,
+        locale: 'en',
+        displayName: resolved.variationPage.displayName,
+      });
+    }
+  },
 };
 
 export type CMS56719CaseId = keyof typeof cases;

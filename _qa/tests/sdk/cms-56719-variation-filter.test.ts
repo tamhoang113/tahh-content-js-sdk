@@ -6,11 +6,8 @@
  * 1. Metadata query declared $v1..$vN variables but never sent their values → HTTP 500
  * 2. includeOriginal was typed but never read → no base version when variation didn't match
  *
- * Uses existing AutoStringAllFields content type (baseType: _page).
- *
- * FIXTURE: CMS page "CMS_56719_VariationFilter" (AutoStringAllFields) with variations.
+ * Uses PageStringProperty content type (baseType: _page) with auto-provisioned variations.
  * Data definition: _qa/fixtures/cms-56719.ts (single source of truth).
- * Seed check: pnpm seed:cms-56719
  *
  * Run:
  *   pnpm test:sdk -- cms-56719
@@ -18,28 +15,26 @@
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { loadSiteConfig } from '../../helpers/config.js';
-import { findContentPathByDisplayName } from '../../helpers/graph-api.js';
 import { callSdkApi } from '../../helpers/sdk-api.js';
+import { ensureStoryFixtures, resolveTestContainer } from '../../helpers/fixtures.js';
 import { CMS_56719, VARIATION_DATA } from '../../fixtures/cms-56719.js';
 
-const config = loadSiteConfig('nextjs-template');
+const config = loadSiteConfig('qa-app');
+const container = resolveTestContainer();
 
-const TEST_DISPLAY_NAME = CMS_56719.cases.variationPage.automationId;
 const VARIATIONS = VARIATION_DATA;
 const BASE = VARIATIONS.find(v => v.variation === null)!;
 const ALL_COUNT = VARIATIONS.length;
 
+let fixtures: Awaited<ReturnType<typeof ensureStoryFixtures<typeof CMS_56719>>>;
 
-describe('CMS-56719 — Variation Filter Fix', () => {
+describe.skipIf(!container)('CMS-56719 — Variation Filter Fix', () => {
   let testContentPath: string;
 
   beforeAll(async () => {
-    const lookup = await findContentPathByDisplayName(config, TEST_DISPLAY_NAME);
-    if (!lookup) {
-      throw new Error(`Fixture "${TEST_DISPLAY_NAME}" not found — create an AutoStringAllFields page with this displayName and variations`);
-    }
-    testContentPath = lookup.path;
-  });
+    fixtures = await ensureStoryFixtures(config, CMS_56719, { container });
+    testContentPath = fixtures.variationPage.path;
+  }, 180_000);
 
   test('SOME with single value returns that variation (not HTTP 500)', async () => {
     const target = VARIATIONS.find(v => v.variation === 'v_mortgages')!;

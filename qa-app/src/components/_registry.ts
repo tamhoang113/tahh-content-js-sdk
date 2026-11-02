@@ -79,6 +79,8 @@ import CMS56217TaxonomyPageComponent, {
   CMS56217TaxonomyPage,
 } from './CMS_56217_TaxonomyCategories';
 
+import { ALL_PROPERTY_TYPES, ALL_PROPERTY_RESOLVERS } from './all_properties';
+
 // ── Reusable Auto* types (always present) ──────────────────────────────────
 
 export const QA_CONTENT_TYPES: any[] = [
@@ -129,6 +131,9 @@ export const QA_CONTENT_TYPES: any[] = [
   CMS54935CardComponentB,
   CMS54935CardContainer,
   CMS56217TaxonomyPage,
+
+  // ── All Properties library (Page/Block/Exp × 12 property types) ─────
+  ...ALL_PROPERTY_TYPES,
 ];
 
 export const QA_RESOLVERS: Record<string, any> = {
@@ -153,4 +158,7 @@ export const QA_RESOLVERS: Record<string, any> = {
   CMS54935CardComponentB: CMS54935CardComponentBComponent,
   CMS54935CardContainer: CMS54935CardContainerComponent,
   CMS56217TaxonomyPage: CMS56217TaxonomyPageComponent,
+
+  // ── All Properties library ──────────────────────────────────────────
+  ...ALL_PROPERTY_RESOLVERS,
 };

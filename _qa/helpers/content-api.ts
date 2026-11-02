@@ -329,6 +329,63 @@ export async function patchContentVersion(
   }
 }
 
+/**
+ * Create a variation version for an existing content item.
+ * POST /v1/content/{key}/versions with `variation` field.
+ * Publishes the variation by default.
+ */
+export async function createVariationVersion(
+  config: SiteConfig,
+  key: string,
+  variation: string,
+  properties: Record<string, unknown>,
+  options?: { publish?: boolean; locale?: string; displayName?: string },
+): Promise<{ version: string }> {
+  const token = await getAccessToken(config);
+  const publish = options?.publish ?? true;
+  const cleanKey = key.replace(/-/g, '');
+
+  const wrappedProps: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(properties)) {
+    if (v !== null && typeof v === 'object' && 'value' in (v as Record<string, unknown>)) {
+      wrappedProps[k] = v;
+    } else {
+      wrappedProps[k] = { value: v };
+    }
+  }
+
+  const url = `${config.cmsApiUrl}/v1/content/${cleanKey}/versions`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify({
+      variation,
+      displayName: options?.displayName ?? variation,
+      locale: options?.locale ?? 'en',
+      properties: wrappedProps,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `POST variation "${variation}" for ${cleanKey} failed: ${res.status} ${await res.text()}`,
+    );
+  }
+
+  const data = await res.json();
+  const newVersion = data.version;
+
+  if (publish && newVersion) {
+    await publishVersion(config, token, cleanKey, String(newVersion));
+  }
+
+  return { version: String(newVersion) };
+}
+
 export interface ImportPackageOptions {
   /** Target container key new content is created under. */
   container?: string;

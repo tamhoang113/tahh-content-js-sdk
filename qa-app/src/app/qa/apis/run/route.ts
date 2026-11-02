@@ -69,9 +69,10 @@ export async function POST(req: NextRequest) {
         if (missing.length) {
           return NextResponse.json({ error: `Missing required fields: ${missing.join(', ')}` }, { status: 400 });
         }
+        const forceMediaToken = params.forceMediaToken === 'true';
         result = await client.getPreviewContent(
           { key: params.key, ver: params.ver, loc: params.loc, preview_token: params.preview_token, ctx: '' },
-          queryOpts,
+          { ...queryOpts, forceMediaToken },
         );
         break;
       }

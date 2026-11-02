@@ -5,8 +5,8 @@
  * contracts, or display templates. Uses --dryRun + --output to inspect
  * the manifest without hitting CMS, plus live push for E2E verification.
  *
- * Content types used: Hero, LandingPage (upstream samples — always present).
- * QA types used: AutoBaseContract, AutoStringAllFields (from src/qa/).
+ * Content types used: Hero, Banner (app types in qa-app).
+ * QA types used: SharedBaseContract, AutoNoContent (from all_properties/).
  *
  * Prerequisites:
  *   - .env with OPTIMIZELY_CMS_URL, CLIENT_ID, CLIENT_SECRET
@@ -26,8 +26,8 @@ import { readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import type { SiteConfig } from '../../helpers/types.js';
 
-const config: SiteConfig = loadSiteConfig('nextjs-template');
-const projectDir = resolveProjectDir('samples/nextjs-template');
+const config: SiteConfig = loadSiteConfig('qa-app');
+const projectDir = resolveProjectDir('qa-app');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -98,8 +98,8 @@ describe('CMS-57357 — scoped manifest content', () => {
     const ctKeys = manifest.contentTypes?.map((ct: any) => ct.key) ?? [];
 
     expect(ctKeys).toContain('Hero');
-    expect(ctKeys).not.toContain('LandingPage');
-    expect(ctKeys).not.toContain('Article');
+    expect(ctKeys).not.toContain('PageStringProperty');
+    expect(ctKeys).not.toContain('Banner');
 
     cleanupFile(outputFile);
   });
@@ -114,7 +114,7 @@ describe('CMS-57357 — scoped manifest content', () => {
 
     expect(ctKeys).toContain('Hero');
     expect(ctKeys).toContain('Banner');
-    expect(ctKeys).not.toContain('Article');
+    expect(ctKeys).not.toContain('PageStringProperty');
 
     cleanupFile(outputFile);
   });
@@ -129,7 +129,6 @@ describe('CMS-57357 — scoped manifest content', () => {
       .map((dt: any) => dt.contentType)
       .filter(Boolean);
 
-    // All display templates in the manifest should belong to Hero
     for (const ct of dtContentTypes) {
       expect(ct).toBe('Hero');
     }
@@ -147,8 +146,8 @@ describe('CMS-57357 — scoped manifest content', () => {
       .map((dt: any) => dt.contentType)
       .filter(Boolean);
 
-    expect(dtContentTypes).not.toContain('LandingPage');
-    expect(dtContentTypes).not.toContain('Article');
+    expect(dtContentTypes).not.toContain('PageStringProperty');
+    expect(dtContentTypes).not.toContain('Banner');
 
     cleanupFile(outputFile);
   });
@@ -161,9 +160,6 @@ describe('CMS-57357 — scoped manifest content', () => {
     const manifest = readManifest(outputFile);
     const pgKeys = (manifest.propertyGroups ?? []).map((pg: any) => pg.key);
 
-    // Hero's property groups should be a subset of all config property groups
-    // (we can't assert exact keys without reading the TSX, but we verify
-    // the list is smaller than the full config's property groups)
     const fullResult = runCli('config push --dryRun --output ' + outputFile + '.full', projectDir);
     expect(fullResult.exitCode).toBe(0);
     const fullManifest = readManifest(outputFile + '.full');
@@ -177,13 +173,13 @@ describe('CMS-57357 — scoped manifest content', () => {
 
   test('--only with contract key includes only the contract', () => {
     cleanupFile(outputFile);
-    const result = pushOnlyDryRun('AutoBaseContract', outputFile);
+    const result = pushOnlyDryRun('SharedBaseContract', outputFile);
     expect(result.exitCode, `CLI failed: ${result.stderr}`).toBe(0);
 
     const manifest = readManifest(outputFile);
     const ctKeys = manifest.contentTypes?.map((ct: any) => ct.key) ?? [];
 
-    expect(ctKeys).toContain('AutoBaseContract');
+    expect(ctKeys).toContain('SharedBaseContract');
     expect(ctKeys.length).toBe(1);
 
     cleanupFile(outputFile);
@@ -200,15 +196,13 @@ describe('CMS-57357 — scoped push logging', () => {
 
     expect(output).toContain('Pushing content types');
     expect(output).toContain('Hero');
-    // Should NOT log the full discovery output for non-scoped items
-    expect(output).not.toMatch(/Content Type found:.*LandingPage/);
+    expect(output).not.toMatch(/Content Type found:.*PageStringProperty/);
   });
 
   test('scoped push does not log applications or property groups discovery', () => {
     const result = pushOnly('Hero', '--dryRun');
     const output = result.stdout + result.stderr;
 
-    // Scoped push suppresses discovery logging (log = false for findMetaData)
     expect(output).not.toContain('Applications found');
   });
 });
@@ -220,7 +214,6 @@ describe('CMS-57357 — --only combined with other flags', () => {
   test('--only + --dryRun does not send to CMS', () => {
     const result = pushOnly('Hero', '--dryRun');
     expect(result.exitCode, `CLI failed: ${result.stderr}`).toBe(0);
-    // dryRun should not contain "uploaded" or "imported"
     const output = result.stdout + result.stderr;
     expect(output).not.toContain('Configuration file uploaded');
     expect(output).not.toContain('Successfully imported');
@@ -245,7 +238,6 @@ describe('CMS-57357 — regression: full push without --only', () => {
     const result = runCli('config push --dryRun', projectDir);
     const output = result.stdout + result.stderr;
 
-    // Full push should show per-file discovery
     expect(output).toContain('Content Type');
   });
 });
